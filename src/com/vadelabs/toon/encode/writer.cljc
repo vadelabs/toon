@@ -54,7 +54,7 @@
   (let [indent-str (:indent-string writer)
         indentation (str/join (repeat depth indent-str))
         ;; Remove trailing spaces from content
-        trimmed-content (str/rtrim content)
+        trimmed-content (str/trimr content)
         line (str indentation trimmed-content)]
     (->LineWriter
       (conj (:lines writer) line)
