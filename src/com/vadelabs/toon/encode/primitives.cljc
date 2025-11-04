@@ -3,7 +3,6 @@
 
   Handles encoding of nil, booleans, numbers, and strings."
   (:require
-    [com.vadelabs.ex.interface :as ex]
     [com.vadelabs.toon.constants :as const]
     [com.vadelabs.toon.shared.quote :as quote]))
 
@@ -57,6 +56,6 @@
 
      ;; Should not reach here if normalized properly
      :else
-     (ex/info! "Cannot encode non-primitive value"
+     (throw (ex-info "Cannot encode non-primitive value"
                      {:value value
-                      :type (type value)}))))
+                      :type (type value)})))))

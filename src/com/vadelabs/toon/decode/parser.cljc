@@ -3,8 +3,7 @@
 
   Parses array headers, delimited values, primitive tokens, and keys."
   (:require
-    [com.vadelabs.ex.interface :as ex]
-    [com.vadelabs.str.interface :as str]
+    [clojure.string :as str]
     [com.vadelabs.toon.shared.string-utils :as str-utils]))
 
 
@@ -40,15 +39,15 @@
    (string-literal s true))
   ([s strict]
    (when-not (str/starts-with? s "\"")
-     (ex/info! "String literal must start with double quote"
+     (throw (ex-info "String literal must start with double quote"
                      {:type :invalid-string-literal
-                      :input s}))
+                      :input s})))
    (let [content-start 1
          close-pos (str-utils/closing-quote s content-start)]
      (when-not close-pos
-       (ex/info! "Unterminated string literal"
+       (throw (ex-info "Unterminated string literal"
                        {:type :unterminated-string
-                        :input s}))
+                        :input s})))
      (let [content (subs s content-start close-pos)]
        (str-utils/unescaped content strict)))))
 ;; ============================================================================
@@ -210,9 +209,9 @@
                        after-marker)
         length (number numeric-part)]
     (when-not length
-      (ex/info! "Invalid array length in bracket segment"
+      (throw (ex-info "Invalid array length in bracket segment"
                       {:type :invalid-bracket-segment
-                       :input bracket-content}))
+                       :input bracket-content})))
     {:length (int length)
      :delimiter delimiter
      :has-length-marker has-marker}))
@@ -247,9 +246,9 @@
         open-bracket (str/index-of line "[")
         close-bracket (str/index-of line "]")]
     (when (or (nil? open-bracket) (nil? close-bracket))
-      (ex/info! "Array header must contain bracket segment"
+      (throw (ex-info "Array header must contain bracket segment"
                       {:type :invalid-array-header
-                       :line line}))
+                       :line line})))
     (let [;; Extract key prefix (before [)
             key-part (when (> open-bracket 0)
                        (str/trim (subs line 0 open-bracket)))

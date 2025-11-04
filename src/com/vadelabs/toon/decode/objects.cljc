@@ -1,8 +1,7 @@
 (ns com.vadelabs.toon.decode.objects
   "Object (map) decoding for TOON format."
   (:require
-    [com.vadelabs.ex.interface :as ex]
-    [com.vadelabs.str.interface :as str]
+    [clojure.string :as str]
     [com.vadelabs.toon.decode.arrays :as arrays]
     [com.vadelabs.toon.decode.parser :as parser]
     [com.vadelabs.toon.decode.scanner :as scanner]
@@ -122,10 +121,10 @@
         ;; Find colon to split key:value
         colon-pos (str-utils/unquoted-char after-marker \:)]
     (when-not colon-pos
-      (ex/info! "Object in list must have key:value format"
+      (throw (ex-info "Object in list must have key:value format"
                       {:type :invalid-object-list-item
                        :line (:line-number line)
-                       :content content}))
+                       :content content})))
     (let [key-part (subs after-marker 0 colon-pos)
             value-part (str/trim (subs after-marker (inc colon-pos)))
             first-key (parser/key-token key-part)

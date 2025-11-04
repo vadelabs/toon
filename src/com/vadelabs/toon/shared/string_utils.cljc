@@ -5,8 +5,7 @@
   - Finding closing quotes with escape handling
   - Finding unquoted characters
   - Unescaping string literals"
-  (:require
-    [com.vadelabs.ex.interface :as ex]))
+  (:require))
 
 
 ;; ============================================================================
@@ -112,9 +111,9 @@
               (if (= ch \\)
                 (if (>= (inc pos) (count s))
                   (if strict
-                    (ex/info! "Invalid escape sequence: trailing backslash"
+                    (throw (ex-info "Invalid escape sequence: trailing backslash"
                                     {:type :invalid-escape
-                                     :position pos})
+                                     :position pos}))
                     (do
                       (.append sb ch)
                       (recur (inc pos))))
@@ -127,10 +126,10 @@
                       \t (do (.append sb "\t") (recur (+ pos 2)))
                       ;; Invalid escape
                       (if strict
-                        (ex/info! (str "Invalid escape sequence: \\" next-ch)
+                        (throw (ex-info (str "Invalid escape sequence: \\" next-ch)
                                         {:type :invalid-escape
                                          :sequence (str "\\" next-ch)
-                                         :position pos})
+                                         :position pos}))
                         (do
                           (.append sb ch)
                           (.append sb next-ch)
@@ -147,9 +146,9 @@
               (if (= ch \\)
                 (if (>= (inc pos) (count s))
                   (if strict
-                    (ex/info! "Invalid escape sequence: trailing backslash"
+                    (throw (ex-info "Invalid escape sequence: trailing backslash"
                                     {:type :invalid-escape
-                                     :position pos})
+                                     :position pos}))
                     (do
                       (.push parts ch)
                       (recur (inc pos))))
@@ -162,10 +161,10 @@
                       \t (do (.push parts "\t") (recur (+ pos 2)))
                       ;; Invalid escape
                       (if strict
-                        (ex/info! (str "Invalid escape sequence: \\" next-ch)
+                        (throw (ex-info (str "Invalid escape sequence: \\" next-ch)
                                         {:type :invalid-escape
                                          :sequence (str "\\" next-ch)
-                                         :position pos})
+                                         :position pos}))
                         (do
                           (.push parts ch)
                           (.push parts next-ch)

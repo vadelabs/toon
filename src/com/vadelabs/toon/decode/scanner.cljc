@@ -4,8 +4,7 @@
   Converts TOON text into structured line objects with depth tracking.
   Provides cursor-based navigation for parsing."
   (:require
-    [com.vadelabs.ex.interface :as ex]
-    [com.vadelabs.str.interface :as str]))
+    [clojure.string :as str]))
 
 
 ;; ============================================================================
@@ -60,18 +59,18 @@
     nil on success, throws on error"
   [line line-number indent indent-size]
   (when (str/includes? line "\t")
-    (ex/info! (str "Tabs not allowed in strict mode (line " line-number ")")
+    (throw (ex-info (str "Tabs not allowed in strict mode (line " line-number ")")
                     {:type :invalid-indentation
                      :line-number line-number
-                     :message "Tabs are not allowed in indentation"}))
+                     :message "Tabs are not allowed in indentation"})))
 
   (when-not (zero? (mod indent indent-size))
-    (ex/info! (str "Indentation must be multiple of " indent-size " (line " line-number ")")
+    (throw (ex-info (str "Indentation must be multiple of " indent-size " (line " line-number ")")
                     {:type :invalid-indentation
                      :line-number line-number
                      :indent indent
                      :indent-size indent-size
-                     :message (str "Indentation must be multiple of " indent-size)})))
+                     :message (str "Indentation must be multiple of " indent-size)}))))
 
 
 (defn to-parsed-lines
@@ -109,7 +108,7 @@
          (let [line (first remaining)
                indent (count-leading-spaces line)
                depth (quot indent indent-size)
-               content (str/ltrim line)]
+               content (str/triml line)]
            (if (blank-line? line)
              ;; Blank line: track separately
              (recur (rest remaining)

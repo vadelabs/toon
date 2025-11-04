@@ -1,7 +1,5 @@
 (ns com.vadelabs.toon.interface
   (:require
-    [com.vadelabs.ex.interface :as ex]
-    [com.vadelabs.spec.interface :as spec]
     [com.vadelabs.toon.constants :as const]
     [com.vadelabs.toon.decode.decoders :as decoders]
     [com.vadelabs.toon.encode.normalize]
@@ -102,11 +100,6 @@
                      :delimiter ","
                      :length-marker false}
                     options)]
-    (when options
-      (when-not (spec/valid? encode-options-schema opts)
-        (ex/info! "Invalid encode options"
-                  {:errors (spec/explain encode-options-schema opts)})))
-
     ;; Normalize input to JSON-compatible values
     (let [normalized (com.vadelabs.toon.encode.normalize/normalize-value input)
           ;; Create writer with configured indent
@@ -148,11 +141,6 @@
   (let [opts (merge {:indent 2
                      :strict true}
                     options)]
-    (when options
-      (when-not (spec/valid? decode-options-schema opts)
-        (ex/info! "Invalid decode options"
-                  {:errors (spec/explain decode-options-schema opts)})))
-
     ;; Parse input to lines with depth tracking
     (let [scan-result (scanner/to-parsed-lines input (:indent opts) (:strict opts))
           cursor (scanner/cursor-from-scan-result scan-result)]

@@ -3,8 +3,7 @@
 
   Handles inline, tabular, and list array formats."
   (:require
-    [com.vadelabs.ex.interface :as ex]
-    [com.vadelabs.str.interface :as str]
+    [clojure.string :as str]
     [com.vadelabs.toon.constants :as const]
     [com.vadelabs.toon.decode.parser :as parser]
     [com.vadelabs.toon.decode.scanner :as scanner]
@@ -42,10 +41,10 @@
        (let [tokens (parser/delimited-values inline-values delimiter)
              values (mapv #(parser/primitive-token % strict) tokens)]
          (when (and strict (not= (count values) length))
-           (ex/info! (str "Array length mismatch: expected " length ", got " (count values))
+           (throw (ex-info (str "Array length mismatch: expected " length ", got " (count values))
                            {:type :array-length-mismatch
                             :expected length
-                            :actual (count values)}))
+                            :actual (count values)})))
          values)))))
 
 
@@ -158,10 +157,10 @@
            ;; No more lines at depth
            (do
              (when (and strict (not= row-count length))
-               (ex/info! (str "Tabular array length mismatch: expected " length " rows, got " row-count)
+               (throw (ex-info (str "Tabular array length mismatch: expected " length " rows, got " row-count)
                                {:type :tabular-array-length-mismatch
                                 :expected length
-                                :actual row-count}))
+                                :actual row-count})))
              [objects remaining-cursor])
            ;; Check if this is a data row or key-value line with look-ahead
            (let [next-cursor (scanner/advance-cursor remaining-cursor)
@@ -220,10 +219,10 @@
            ;; No more lines at depth
            (do
              (when (and strict (not= item-count length))
-               (ex/info! (str "List array length mismatch: expected " length " items, got " item-count)
+               (throw (ex-info (str "List array length mismatch: expected " length " items, got " item-count)
                                {:type :list-array-length-mismatch
                                 :expected length
-                                :actual item-count}))
+                                :actual item-count})))
              [items remaining-cursor])
            ;; Check if line starts with list marker
            (if-not (str/starts-with? (:content line) const/list-item-prefix)
