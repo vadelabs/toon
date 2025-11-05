@@ -6,9 +6,9 @@ This project uses date-based versioning: `YYYY.MM.DD-N` where N is the commit co
 
 This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
 
-## [2025.11.05-12] - 2025-11-05
+## [2025.11.05-20] - 2025-11-05
 
-First release! 🎉
+First public release! 🎉
 
 A Clojure/ClojureScript implementation of TOON (Token-Oriented Object Notation) - a compact format for passing data to LLMs with significantly fewer tokens than JSON.
 
@@ -19,9 +19,10 @@ A Clojure/ClojureScript implementation of TOON (Token-Oriented Object Notation) 
 - **Flexible options** - choose your delimiter (comma, tab, pipe), add length markers, adjust indentation
 - **Smart string handling** - only quotes when necessary, supports Unicode and emoji
 - **Both platforms** - works in Clojure (JVM) and ClojureScript
-- **Well tested** - 340+ tests including property-based roundtrip testing
+- **Well tested** - 340+ tests with 90%+ code coverage including property-based roundtrip testing
 - **Great errors** - helpful messages with suggestions when things go wrong
 - **Comprehensive docs** - README with examples, API reference, and contribution guidelines
+- **CI/CD** - Automated testing and deployment to Clojars via GitHub Actions
 
 ### Why use TOON?
 
@@ -34,7 +35,7 @@ Saves tokens when sending structured data to LLMs:
 
 ```clojure
 ;; Add to deps.edn
-com.vadelabs/toon {:mvn/version "2025.11.05-12"}
+com.vadelabs/toon {:mvn/version "2025.11.05-20"}
 
 ;; Use it
 (require '[com.vadelabs.toon.interface :as toon])
@@ -43,10 +44,15 @@ com.vadelabs/toon {:mvn/version "2025.11.05-12"}
 ;=> "users[2]{id,name}:\n  1,Alice\n  2,Bob"
 ```
 
+### Fixed
+
+- Version consistency between GitHub releases and Clojars deployments
+- Build now uses git tag version when available for consistent versioning
+
 ### Links
 
 - [TOON Specification](https://github.com/toon-format/spec)
 - [Reference Implementation (TypeScript)](https://github.com/toon-format/toon)
 - [Other Implementations](https://github.com/toon-format/toon#other-implementations)
 
-[2025.11.05-12]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-12
+[2025.11.05-20]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-20
