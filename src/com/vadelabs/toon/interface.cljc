@@ -1,65 +1,10 @@
 (ns com.vadelabs.toon.interface
   (:require
-    [com.vadelabs.toon.constants :as const]
     [com.vadelabs.toon.decode.decoders :as decoders]
     [com.vadelabs.toon.encode.normalize]
     [com.vadelabs.toon.encode.encoders]
     [com.vadelabs.toon.decode.scanner :as scanner]
     [com.vadelabs.toon.encode.writer]))
-
-
-;; ============================================================================
-;; Schemas (using Malli)
-;; ============================================================================
-
-;; Delimiter schema
-(def delimiter-schema
-  [:enum (:comma const/delimiters)
-   (:tab const/delimiters)
-   (:pipe const/delimiters)])
-
-
-;; Length marker schema
-(def length-marker-schema
-  [:or [:= "#"] [:= false]])
-
-
-;; Encode options schema
-(def encode-options-schema
-  [:map
-   [:indent {:optional true} pos-int?]
-   [:delimiter {:optional true} delimiter-schema]
-   [:length-marker {:optional true} length-marker-schema]])
-
-
-;; Decode options schema
-(def decode-options-schema
-  [:map
-   [:indent {:optional true} pos-int?]
-   [:strict {:optional true} :boolean]])
-
-
-;; JSON value schemas (recursive)
-(def json-primitive-schema
-  [:or :nil :boolean :number :string])
-
-
-(def json-object-schema
-  [:map-of :string [:ref ::json-value]])
-
-
-(def json-array-schema
-  [:vector [:ref ::json-value]])
-
-
-(def json-value-schema
-  [:schema
-   {:registry {::json-value
-               [:or
-                json-primitive-schema
-                json-object-schema
-                json-array-schema]}}
-   ::json-value])
 
 
 ;; ============================================================================

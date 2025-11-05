@@ -48,28 +48,8 @@
 ;; Pattern Detection Tests
 ;; ============================================================================
 
-(deftest boolean-literal-detection-test
-  (testing "Boolean literals are detected"
-    (is (quote/boolean-literal? "true"))
-    (is (quote/boolean-literal? "false")))
-
-  (testing "Non-boolean strings are not detected"
-    (is (not (quote/boolean-literal? "True")))
-    (is (not (quote/boolean-literal? "FALSE")))
-    (is (not (quote/boolean-literal? "true ")))
-    (is (not (quote/boolean-literal? " false")))
-    (is (not (quote/boolean-literal? "truthy")))))
-
-(deftest null-literal-detection-test
-  (testing "Null literal is detected"
-    (is (quote/null-literal? "null")))
-
-  (testing "Non-null strings are not detected"
-    (is (not (quote/null-literal? "Null")))
-    (is (not (quote/null-literal? "NULL")))
-    (is (not (quote/null-literal? "null ")))
-    (is (not (quote/null-literal? " null")))
-    (is (not (quote/null-literal? "nullable")))))
+;; Removed boolean-literal?, null-literal? tests - these are now inlined in needs-quoting?
+;; The functionality is still tested through needs-quoting? comprehensive tests below
 
 (deftest numeric-like-detection-test
   (testing "Integer-like strings are detected"
@@ -115,45 +95,8 @@
     (is (not (quote/has-structural-chars? "hello world")))
     (is (not (quote/has-structural-chars? "123")))))
 
-(deftest control-chars-detection-test
-  (testing "Control characters are detected"
-    (is (quote/has-control-chars? "line1\nline2"))
-    (is (quote/has-control-chars? "a\tb"))
-    (is (quote/has-control-chars? "line1\rline2"))
-    (is (quote/has-control-chars? "mix\n\r\t")))
-
-  (testing "Non-control strings are not detected"
-    (is (not (quote/has-control-chars? "simple")))
-    (is (not (quote/has-control-chars? "hello world")))))
-
-(deftest backslash-detection-test
-  (testing "Backslashes are detected"
-    (is (quote/has-backslash? "C:\\path"))
-    (is (quote/has-backslash? "a\\b"))
-    (is (quote/has-backslash? "\\n")))
-
-  (testing "Strings without backslash are not detected"
-    (is (not (quote/has-backslash? "simple")))
-    (is (not (quote/has-backslash? "hello/world")))))
-
-(deftest whitespace-padding-detection-test
-  (testing "Leading whitespace is detected"
-    (is (quote/has-whitespace-padding? " leading"))
-    (is (quote/has-whitespace-padding? "  double"))
-    (is (quote/has-whitespace-padding? "\tleading-tab")))
-
-  (testing "Trailing whitespace is detected"
-    (is (quote/has-whitespace-padding? "trailing "))
-    (is (quote/has-whitespace-padding? "double  "))
-    (is (quote/has-whitespace-padding? "trailing-tab\t")))
-
-  (testing "Both leading and trailing whitespace is detected"
-    (is (quote/has-whitespace-padding? " both "))
-    (is (quote/has-whitespace-padding? "  trimmed  ")))
-
-  (testing "Strings without padding are not detected"
-    (is (not (quote/has-whitespace-padding? "no padding")))
-    (is (not (quote/has-whitespace-padding? "internal spaces ok")))))
+;; Removed has-control-chars?, has-backslash?, has-whitespace-padding? tests
+;; These are now inlined in needs-quoting?, functionality tested through comprehensive tests below
 
 ;; ============================================================================
 ;; needs-quoting? Comprehensive Tests

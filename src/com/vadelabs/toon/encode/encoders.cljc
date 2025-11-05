@@ -34,9 +34,9 @@
 
   Returns:
     Updated LineWriter"
-  [k v options depth writer]
+  [k v {:keys [delimiter]} depth writer]
   (let [quoted-key (quote/maybe-quote-key k)
-        encoded-value (prim/encode v (:delimiter options))
+        encoded-value (prim/encode v delimiter)
         line (str quoted-key const/colon const/space encoded-value)]
     (writer/push writer depth line)))
 
@@ -72,11 +72,11 @@
 
   Returns:
     Updated LineWriter"
-  [k v options depth writer]
+  [k v {:keys [delimiter length-marker]} depth writer]
   (let [quoted-key (quote/maybe-quote-key k)
-        header (str quoted-key (array/array-header (count v) (:length-marker options) (:delimiter options)) const/colon const/space)
-        encoded-values (map #(prim/encode % (:delimiter options)) v)
-        values-str (str/join (:delimiter options) encoded-values)
+        header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon const/space)
+        encoded-values (map #(prim/encode % delimiter) v)
+        values-str (str/join delimiter encoded-values)
         line (str header values-str)]
     (writer/push writer depth line)))
 
@@ -97,27 +97,27 @@
 
   Returns:
     Updated LineWriter"
-  [k v options depth writer]
+  [k v {:keys [delimiter length-marker] :as options} depth writer]
   (let [quoted-key (quote/maybe-quote-key k)]
     (cond
       ;; Uniform array of objects with common keys: tabular format
       (and (norm/array-of-objects? v)
            (seq (array/extract-common-keys v)))
-      (let [header (str quoted-key (array/array-header (count v) (:length-marker options) (:delimiter options)))
+      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter))
             w (writer/push writer depth header)]
-        (array/encode v (:length-marker options) (:delimiter options) depth w))
+        (array/encode v length-marker delimiter depth w))
 
       ;; Array of arrays: list format
       (norm/array-of-arrays? v)
-      (let [header (str quoted-key (array/array-header (count v) (:length-marker options) (:delimiter options)) const/colon)
+      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon)
             w (writer/push writer depth header)]
-        (array/of-arrays-items v (:length-marker options) (:delimiter options) (inc depth) w))
+        (array/of-arrays-items v length-marker delimiter (inc depth) w))
 
       ;; Mixed arrays or non-uniform objects: list format
       :else
-      (let [header (str quoted-key (array/array-header (count v) (:length-marker options) (:delimiter options)) const/colon)
+      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon)
             w (writer/push writer depth header)]
-        (array/mixed-items v (:length-marker options) (:delimiter options) (inc depth) w)))))
+        (array/mixed-items v length-marker delimiter (inc depth) w)))))
 
 
 (defn- object-pair
@@ -217,13 +217,13 @@
 
   Returns:
     Updated LineWriter."
-  [v options depth writer]
+  [v {:keys [delimiter length-marker] :as options} depth writer]
   (cond
     (norm/primitive? v)
-    (writer/push writer depth (prim/encode v (:delimiter options)))
+    (writer/push writer depth (prim/encode v delimiter))
 
     (vector? v)
-    (array/encode v (:length-marker options) (:delimiter options) depth writer)
+    (array/encode v length-marker delimiter depth writer)
 
     (map? v)
     (object v options depth writer)

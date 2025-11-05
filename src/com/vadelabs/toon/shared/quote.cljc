@@ -13,35 +13,22 @@
 ;; Pattern Detection Helpers
 ;; ============================================================================
 
-(defn boolean-literal? [value]
-  (or (= value "true") (= value "false")))
+(defn numeric-like?
+  "Returns true if value looks like a number.
 
-(defn null-literal? [value]
-  (= value "null"))
-
-(defn numeric-like? [value]
+  Matches standard numeric patterns (42, -3.14, 1e-6) and
+  leading zero patterns (05, 007)."
+  [value]
   (or
     ;; Standard numeric pattern: 42, -3.14, 1e-6
     (boolean (re-matches #"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$" value))
     ;; Leading zeros pattern: 05, 007
     (boolean (re-matches #"^0\d+$" value))))
 
-(defn has-structural-chars? [value]
+(defn has-structural-chars?
+  "Returns true if value contains structural characters: [ ] { } -"
+  [value]
   (boolean (re-find #"[\[\]{}\-]" value)))
-
-(defn starts-with-hyphen? [value]
-  (str/starts-with? value "-"))
-
-(defn has-control-chars? [value]
-  (or (str/includes? value "\n")
-      (str/includes? value "\r")
-      (str/includes? value "\t")))
-
-(defn has-backslash? [value]
-  (str/includes? value "\\"))
-
-(defn has-whitespace-padding? [value]
-  (not= value (str/trim value)))
 
 
 ;; ============================================================================
@@ -95,13 +82,11 @@
   - Is empty or blank
   - Has leading/trailing whitespace
   - Exactly matches reserved literals: 'true', 'false', 'null'
-  - Looks like a number (e.g., '42', '-3.14', '1e-6')
+  - Looks like a number (e.g., '42', '-3.14', '1e-6', '05')
   - Contains the active delimiter
   - Contains structural characters: [ ] { } -
-  - Starts with hyphen (conflicts with list markers)
   - Contains colon (key-value separator)
-  - Contains double quotes
-  - Contains backslashes
+  - Contains double quotes or backslashes
   - Contains control characters (newline, tab, carriage return)
 
   Parameters:
@@ -118,11 +103,10 @@
      (str/blank? value)
 
      ;; Leading/trailing whitespace needs quoting
-     (has-whitespace-padding? value)
+     (not= value (str/trim value))
 
      ;; Reserved literals need quoting to avoid ambiguity
-     (boolean-literal? value)
-     (null-literal? value)
+     (#{"true" "false" "null"} value)
 
      ;; Numeric-like strings need quoting
      (numeric-like? value)
@@ -138,8 +122,10 @@
 
      ;; Contains characters that need escaping
      (str/includes? value const/double-quote)
-     (has-backslash? value)
-     (has-control-chars? value))))
+     (str/includes? value "\\")
+
+     ;; Control characters (newlines, tabs, carriage returns)
+     (re-find #"[\n\r\t]" value))))
 
 
 (defn wrap
