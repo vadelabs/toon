@@ -2,124 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project uses date-based versioning: `YYYY.MM.DD-N` where N is the commit count for that day.
+This project uses date-based versioning: `YYYY.MM.DD-N` where N is the commit count for that day.
 
 This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
 
-## [1.0.0] - 2025-11-05
+## [2025.11.05-12] - 2025-11-05
 
-First stable release of TOON (Token-Oriented Object Notation) for Clojure/ClojureScript.
+First release! 🎉
 
-### Core Features
+A Clojure/ClojureScript implementation of TOON (Token-Oriented Object Notation) - a compact format for passing data to LLMs with significantly fewer tokens than JSON.
 
-**Encoding & Decoding**
-- Full TOON v1.3 specification compliance
-- Bidirectional conversion between Clojure data structures and TOON format
-- Support for objects, arrays, and primitive values
-- Automatic type normalization to JSON-compatible types
+### What's included
 
-**Array Formats**
-- **Inline arrays**: Primitive values in comma-separated format (`tags[3]: a,b,c`)
-- **Tabular arrays**: Uniform objects with field headers (`[2]{id,name}: 1,Alice 2,Bob`)
-- **List arrays**: Non-uniform or mixed-type items with `- ` prefix
+- **Full TOON v1.3 support** - encode and decode between Clojure data and TOON format
+- **Three array styles** - inline for primitives, tabular for uniform objects, list for mixed data
+- **Flexible options** - choose your delimiter (comma, tab, pipe), add length markers, adjust indentation
+- **Smart string handling** - only quotes when necessary, supports Unicode and emoji
+- **Both platforms** - works in Clojure (JVM) and ClojureScript
+- **Well tested** - 340+ tests including property-based roundtrip testing
+- **Great errors** - helpful messages with suggestions when things go wrong
+- **Comprehensive docs** - README with examples, API reference, and contribution guidelines
 
-**Format Options**
-- Configurable delimiters: comma (default), tab (`\t`), or pipe (`|`)
-- Optional length markers with `#` prefix (e.g., `items[#3]`)
-- Adjustable indentation size (default: 2 spaces)
-- Strict and relaxed parsing modes
+### Why use TOON?
 
-**Type Support**
-- Primitives: strings, numbers, booleans, null
-- Nested objects with indentation-based structure
-- Arrays of primitives, objects, or mixed types
-- Arrays of arrays (nested arrays)
-- Empty containers: `[]`, `{}`, `[0]:`, `key:`
+Saves tokens when sending structured data to LLMs:
+- 49% fewer tokens than formatted JSON
+- 28% fewer than minified JSON
+- Works best for uniform arrays of objects (like database query results)
 
-**String Handling**
-- Intelligent quoting: only when necessary for delimiters, colons, reserved words
-- Escape sequences: `\"`, `\\`, `\n`, `\t`, control characters
-- Unicode and emoji support (unquoted)
-- Leading/trailing whitespace preservation
+### Getting started
 
-**Platform Support**
-- Clojure (JVM)
-- ClojureScript (JavaScript)
-- Cross-platform `.cljc` implementation
+```clojure
+;; Add to deps.edn
+com.vadelabs/toon {:mvn/version "2025.11.05-12"}
 
-### Performance & Quality
+;; Use it
+(require '[com.vadelabs.toon.interface :as toon])
 
-**Token Efficiency**
-- 49.1% reduction vs formatted JSON (2-space indentation)
-- 28.0% reduction vs compact JSON (minified)
-- 39.4% reduction vs YAML
-- 56.0% reduction vs XML
-
-**Testing**
-- 340+ unit tests with 792+ assertions
-- Property-based roundtrip tests using test.check
-- Comprehensive edge case coverage
-- Tests for primitives, arrays, objects, nesting, special characters
-- Cross-platform compatibility testing
-
-**Error Handling**
-- Descriptive error messages with context
-- Actionable suggestions for fixes
-- Examples of correct usage
-- Validation in strict mode:
-  - Array length mismatches
-  - Invalid escape sequences
-  - Malformed headers and syntax errors
-
-### Documentation
-
-**User Documentation**
-- Comprehensive README with:
-  - Quick start guide and API reference
-  - Format examples with JSON comparisons
-  - Token efficiency benchmarks
-  - Use case guidance (when to use TOON vs JSON vs CSV)
-  - Links to official specification and benchmarks
-- CONTRIBUTING.md for contributors
-- SPEC.md reference to official specification
-
-**Code Quality**
-- Consolidated namespace organization
-- Deduplicated escape logic across platforms
-- Named constants for magic strings
-- Comprehensive docstrings on public API
-- Clear separation of concerns (encode/decode/parse/scan)
-
-### API
-
-**Main Functions**
-
-`encode(value, options)`
-- Encodes Clojure data to TOON format
-- Options: `:indent`, `:delimiter`, `:length-marker`
-- Returns TOON string with no trailing newline
-
-`decode(input, options)`
-- Decodes TOON format to Clojure data
-- Options: `:indent`, `:strict`
-- Returns Clojure data structures (maps, vectors, primitives)
-
-### Build & Release
-
-- Date-based semantic versioning (YYYY.MM.DD-N)
-- Automatic version calculation from git commit count
-- JAR packaging for Maven/Clojars distribution
-- Comprehensive POM metadata
-
-### License
-
-- MIT License for broad compatibility and commercial use
+(toon/encode {:users [{:id 1 :name "Alice"} {:id 2 :name "Bob"}]})
+;=> "users[2]{id,name}:\n  1,Alice\n  2,Bob"
+```
 
 ### Links
 
-- [TOON v1.3 Specification](https://github.com/toon-format/spec)
+- [TOON Specification](https://github.com/toon-format/spec)
 - [Reference Implementation (TypeScript)](https://github.com/toon-format/toon)
-- [Conformance Tests](https://github.com/toon-format/spec/tree/main/tests)
+- [Other Implementations](https://github.com/toon-format/toon#other-implementations)
 
-[1.0.0]: https://github.com/vadelabs/toon/releases/tag/v1.0.0
+[2025.11.05-12]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-12
