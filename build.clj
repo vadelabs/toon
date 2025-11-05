@@ -51,15 +51,29 @@
       0)))
 
 
+(defn- count-all-commits
+  "Count all commits in repository history"
+  []
+  (try
+    (let [proc (.exec (Runtime/getRuntime) (into-array String ["git" "rev-list" "--count" "HEAD"]))
+          _ (.waitFor proc)
+          output (clojure.string/trim (slurp (.getInputStream proc)))]
+      (if (empty? output)
+        0
+        (Integer/parseInt output)))
+    (catch Exception _
+      0)))
+
+
 (defn- date-commit-count-version
-  "Generate version as YYYY.MM.DD-N where N is commits since last release"
+  "Generate version as YYYY.MM.DD-N where N is commits since last release (or all commits if no release)"
   []
   (let [date (.format (java.time.LocalDate/now)
                       (java.time.format.DateTimeFormatter/ofPattern "yyyy.MM.dd"))
         last-tag (get-last-release-tag)
         commit-count (if last-tag
                        (count-commits-since-tag last-tag)
-                       0)]
+                       (count-all-commits))]
     (format "%s-%d" date commit-count)))
 
 

@@ -6,7 +6,7 @@ This project uses date-based versioning: `YYYY.MM.DD-N` where N is the number of
 
 This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
 
-## [2025.11.05-0] - 2025-11-05
+## [2025.11.05-43] - 2025-11-05
 
 First public release! 🎉
 
@@ -36,7 +36,7 @@ Saves tokens when sending structured data to LLMs:
 
 ```clojure
 ;; Add to deps.edn
-com.vadelabs/toon {:mvn/version "2025.11.05-0"}
+com.vadelabs/toon {:mvn/version "2025.11.05-43"}
 
 ;; Use it
 (require '[com.vadelabs.toon.interface :as toon])
@@ -51,4 +51,4 @@ com.vadelabs/toon {:mvn/version "2025.11.05-0"}
 - [Reference Implementation (TypeScript)](https://github.com/toon-format/toon)
 - [Other Implementations](https://github.com/toon-format/toon#other-implementations)
 
-[2025.11.05-0]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-0
+[2025.11.05-43]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-43

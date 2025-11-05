@@ -11,10 +11,10 @@
           :ns-default build}
   :coverage {:extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}
                           org.clojure/test.check {:mvn/version "1.1.1"}}
-              :exec-fn cloverage.coverage/run-project
-              :exec-args {:src-ns-path ["src"]
-                          :test-ns-path ["test"]
-                          :output "target/coverage"
-                          :html? true
-                          :codecov? true
-                          :fail-threshold 70}}}}
+             :exec-fn cloverage.coverage/run-project
+             :exec-args {:src-ns-path ["src"]
+                         :test-ns-path ["test"]
+                         :output "target/coverage"
+                         :html? true
+                         :codecov? true
+                         :fail-threshold 70}}}}
