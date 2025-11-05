@@ -65,13 +65,13 @@ Real-world examples:
 ### Clojure CLI/deps.edn
 
 ```clojure
-com.vadelabs/toon {:mvn/version "2025.11.05-12"}
+com.vadelabs/toon {:mvn/version "2025.11.05-0"}
 ```
 
 ### Leiningen/Boot
 
 ```clojure
-[com.vadelabs/toon "2025.11.05-12"]
+[com.vadelabs/toon "2025.11.05-0"]
 ```
 
 ## Quick Start

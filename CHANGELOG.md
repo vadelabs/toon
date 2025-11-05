@@ -6,7 +6,7 @@ This project uses date-based versioning: `YYYY.MM.DD-N` where N is the number of
 
 This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
 
-## [2025.11.05-20] - 2025-11-05
+## [2025.11.05-0] - 2025-11-05
 
 First public release! 🎉
 
@@ -23,6 +23,7 @@ A Clojure/ClojureScript implementation of TOON (Token-Oriented Object Notation) 
 - **Great errors** - helpful messages with suggestions when things go wrong
 - **Comprehensive docs** - README with examples, API reference, and contribution guidelines
 - **CI/CD** - Automated testing and deployment to Clojars via GitHub Actions
+- **Smart versioning** - Version number reflects commits since last release
 
 ### Why use TOON?
 
@@ -35,7 +36,7 @@ Saves tokens when sending structured data to LLMs:
 
 ```clojure
 ;; Add to deps.edn
-com.vadelabs/toon {:mvn/version "2025.11.05-20"}
+com.vadelabs/toon {:mvn/version "2025.11.05-0"}
 
 ;; Use it
 (require '[com.vadelabs.toon.interface :as toon])
@@ -44,15 +45,10 @@ com.vadelabs/toon {:mvn/version "2025.11.05-20"}
 ;=> "users[2]{id,name}:\n  1,Alice\n  2,Bob"
 ```
 
-### Fixed
-
-- Version consistency between GitHub releases and Clojars deployments
-- Build now uses git tag version when available for consistent versioning
-
 ### Links
 
 - [TOON Specification](https://github.com/toon-format/spec)
 - [Reference Implementation (TypeScript)](https://github.com/toon-format/toon)
 - [Other Implementations](https://github.com/toon-format/toon#other-implementations)
 
-[2025.11.05-20]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-20
+[2025.11.05-0]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-0
