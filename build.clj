@@ -8,6 +8,21 @@
 (def lib 'com.vadelabs/toon)
 
 
+(defn- get-git-tag-version
+  "Get version from current git tag if it exists"
+  []
+  (try
+    (let [proc (.exec (Runtime/getRuntime) (into-array String ["git" "describe" "--exact-match" "--tags"]))
+          exit-code (.waitFor proc)]
+      (when (zero? exit-code)
+        (let [output (clojure.string/trim (slurp (.getInputStream proc)))]
+          (when (and (not (empty? output))
+                     (clojure.string/starts-with? output "v"))
+            (subs output 1))))) ; Strip leading 'v'
+    (catch Exception _
+      nil)))
+
+
 (defn- date-commit-count-version
   []
   (let [date (.format (java.time.LocalDate/now)
@@ -24,7 +39,7 @@
         (format "%s-0" date)))))
 
 
-(def version (date-commit-count-version))
+(def version (or (get-git-tag-version) (date-commit-count-version)))
 (def class-dir "target/classes")
 
 
