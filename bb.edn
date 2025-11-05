@@ -25,11 +25,5 @@
   install {:doc "Install the JAR locally (build via ci)."
            :task (clojure "-T:build" "install")}
 
-  coverage {:doc "Run test coverage report (HTML output in target/coverage)."
-            :task (clojure "-M:coverage" "-m" "cloverage.coverage" "--src-ns-path" "src" "--test-ns-path" "test")}
-
-  coverage:text {:doc "Run test coverage with text summary."
-                 :task (clojure "-M:coverage" "-m" "cloverage.coverage" "--src-ns-path" "src" "--test-ns-path" "test" "--text")}
-
-  coverage:summary {:doc "Run test coverage with summary only."
-                    :task (clojure "-M:coverage" "-m" "cloverage.coverage" "--src-ns-path" "src" "--test-ns-path" "test" "--summary")}}}
+  coverage {:doc "Generate test coverage report (HTML + Codecov JSON)."
+            :task (clojure "-X:test:coverage")}}}

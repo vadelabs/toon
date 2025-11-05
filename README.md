@@ -354,14 +354,8 @@ bb test:all
 # Run CI pipeline with tests
 bb ci
 
-# Run test coverage (HTML report in target/coverage)
+# Generate test coverage report
 bb coverage
-
-# Run coverage with text summary
-bb coverage:text
-
-# Run coverage with summary only
-bb coverage:summary
 ```
 
 The library includes:
@@ -369,6 +363,10 @@ The library includes:
 - Property-based tests using test.check
 - Comprehensive roundtrip testing
 - Edge case coverage
+
+Coverage reports are generated in `target/coverage/` including:
+- HTML report: `target/coverage/index.html`
+- Codecov JSON: `target/coverage/codecov.json`
 
 ## Contributing
 
