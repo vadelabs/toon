@@ -23,20 +23,44 @@
       nil)))
 
 
+(defn- get-last-release-tag
+  "Get the last release tag (tags starting with 'v')"
+  []
+  (try
+    (let [proc (.exec (Runtime/getRuntime) (into-array String ["git" "describe" "--tags" "--abbrev=0" "--match" "v*"]))
+          exit-code (.waitFor proc)]
+      (when (zero? exit-code)
+        (let [output (clojure.string/trim (slurp (.getInputStream proc)))]
+          (when-not (empty? output)
+            output))))
+    (catch Exception _
+      nil)))
+
+
+(defn- count-commits-since-tag
+  "Count commits since the given tag"
+  [tag]
+  (try
+    (let [proc (.exec (Runtime/getRuntime) (into-array String ["git" "rev-list" (str tag "..HEAD") "--count"]))
+          _ (.waitFor proc)
+          output (clojure.string/trim (slurp (.getInputStream proc)))]
+      (if (empty? output)
+        0
+        (Integer/parseInt output)))
+    (catch Exception _
+      0)))
+
+
 (defn- date-commit-count-version
+  "Generate version as YYYY.MM.DD-N where N is commits since last release"
   []
   (let [date (.format (java.time.LocalDate/now)
                       (java.time.format.DateTimeFormatter/ofPattern "yyyy.MM.dd"))
-        today-midnight (str date "T00:00:00")]
-    (try
-      (let [proc (.exec (Runtime/getRuntime) (into-array String ["git" "log" "--since" today-midnight "--oneline"]))
-            _ (.waitFor proc)
-            output (slurp (.getInputStream proc))
-            commit-count (if (empty? output) 0 (count (clojure.string/split-lines output)))]
-        (format "%s-%d" date commit-count))
-      (catch Exception _
-        ;; Fallback if git is not available
-        (format "%s-0" date)))))
+        last-tag (get-last-release-tag)
+        commit-count (if last-tag
+                       (count-commits-since-tag last-tag)
+                       0)]
+    (format "%s-%d" date commit-count)))
 
 
 (def version (or (get-git-tag-version) (date-commit-count-version)))
