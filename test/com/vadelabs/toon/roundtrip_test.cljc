@@ -215,3 +215,177 @@
     (let [expected (normalize-for-comparison value)
           actual (roundtrip value)]
       (= expected actual))))
+
+
+;; ============================================================================
+;; Enhanced Generators for Comprehensive Testing
+;; ============================================================================
+
+(def gen-special-string
+  "Generator for strings requiring quoting"
+  (gen/one-of [(gen/return "true")
+               (gen/return "false")
+               (gen/return "null")
+               (gen/return "42")
+               (gen/return "3.14")
+               (gen/return "007")
+               (gen/return "a,b")
+               (gen/return "key:value")
+               (gen/return "say \"hi\"")
+               (gen/return "line1\nline2")
+               (gen/return "tab\there")
+               (gen/return "back\\slash")
+               (gen/return " leading")
+               (gen/return "trailing ")
+               (gen/return "[array]")
+               (gen/return "{object}")
+               (gen/return "- item")]))
+
+(def gen-unicode-string
+  "Generator for unicode and emoji strings"
+  (gen/one-of [(gen/return "café")
+               (gen/return "你好")
+               (gen/return "🚀")
+               (gen/return "héllo wörld")
+               (gen/return "テスト")]))
+
+(def gen-safe-key
+  "Generator for safe object keys"
+  (gen/one-of [gen-non-empty-string
+               (gen/fmap #(str "key" %) gen/nat)]))
+
+(def gen-nested-array
+  "Generator for arrays of arrays"
+  (gen/vector (gen/vector gen/int 0 5) 1 5))
+
+
+;; ============================================================================
+;; Deep Nesting Tests
+;; ============================================================================
+
+(defspec deeply-nested-objects-roundtrip 50
+  (prop/for-all [name gen-non-empty-string
+                 age gen/int
+                 city gen-non-empty-string]
+    (let [obj {"level1" {"level2" {"level3" {"name" name "age" age "city" city}}}}
+          expected (normalize-for-comparison obj)
+          actual (roundtrip obj)]
+      (= expected actual))))
+
+(defspec nested-arrays-roundtrip 50
+  (prop/for-all [arr gen-nested-array]
+    (let [expected (mapv #(mapv double %) arr)
+          actual (roundtrip arr)]
+      (= expected actual))))
+
+
+;; ============================================================================
+;; Special String Cases
+;; ============================================================================
+
+(defspec special-strings-roundtrip 50
+  (prop/for-all [s gen-special-string]
+    (= s (roundtrip s))))
+
+(defspec unicode-strings-roundtrip 50
+  (prop/for-all [s gen-unicode-string]
+    (= s (roundtrip s))))
+
+(defspec strings-with-whitespace-roundtrip 50
+  (prop/for-all [ws1 (gen/elements [" " "  " "\t"])
+                 content gen-non-empty-string
+                 ws2 (gen/elements [" " "  " "\t"])]
+    (let [s (str ws1 content ws2)]
+      (= s (roundtrip s)))))
+
+
+;; ============================================================================
+;; Different Delimiter Options
+;; ============================================================================
+
+(defspec roundtrip-with-tab-delimiter 50
+  (prop/for-all [obj gen-simple-map]
+    (let [encoded (toon/encode obj {:delimiter "\t"})
+          decoded (toon/decode encoded)
+          expected (normalize-for-comparison obj)]
+      (= expected decoded))))
+
+(defspec roundtrip-with-pipe-delimiter 50
+  (prop/for-all [obj gen-simple-map]
+    (let [encoded (toon/encode obj {:delimiter "|"})
+          decoded (toon/decode encoded)
+          expected (normalize-for-comparison obj)]
+      (= expected decoded))))
+
+
+;; ============================================================================
+;; Length Marker Options
+;; ============================================================================
+
+(defspec roundtrip-with-length-marker 50
+  (prop/for-all [arr gen-int-vector]
+    (let [encoded (toon/encode arr {:length-marker "#"})
+          decoded (toon/decode encoded)
+          expected (mapv double arr)]
+      (= expected decoded))))
+
+(defspec object-with-array-and-length-marker 50
+  (prop/for-all [name gen-non-empty-string
+                 tags gen-string-vector]
+    (let [obj {"name" name "tags" tags}
+          encoded (toon/encode obj {:length-marker "#"})
+          decoded (toon/decode encoded)
+          expected (normalize-for-comparison obj)]
+      (= expected decoded))))
+
+
+;; ============================================================================
+;; Large Structure Tests
+;; ============================================================================
+
+(defspec large-object-roundtrip 30
+  (prop/for-all [obj (gen/map gen-safe-key gen-json-primitive
+                              {:min-elements 10 :max-elements 50})]
+    (let [expected (normalize-for-comparison obj)
+          actual (roundtrip obj)]
+      (= expected actual))))
+
+(defspec large-array-roundtrip 30
+  (prop/for-all [arr (gen/vector gen/int 50 200)]
+    (let [expected (mapv double arr)
+          actual (roundtrip arr)]
+      (= expected actual))))
+
+(defspec large-array-of-objects-roundtrip 30
+  (prop/for-all [objects (gen/vector
+                          (gen/fmap (fn [[id name]]
+                                      {"id" id "name" name})
+                                    (gen/tuple gen/int gen-non-empty-string))
+                          10 50)]
+    (let [expected (normalize-for-comparison objects)
+          actual (roundtrip objects)]
+      (= expected actual))))
+
+
+;; ============================================================================
+;; Edge Cases for Keys
+;; ============================================================================
+
+(defspec keys-with-special-chars-roundtrip 50
+  (prop/for-all [value gen-non-empty-string]
+    (let [obj {"user name" value
+               "key:value" value
+               "123" value
+               "$special" value}
+          expected (normalize-for-comparison obj)
+          actual (roundtrip obj)]
+      (= expected actual))))
+
+(defspec namespaced-keys-roundtrip 50
+  (prop/for-all [value gen-non-empty-string]
+    (let [obj {"user/name" value
+               "app.config/port" value
+               "ns.core/value" value}
+          expected (normalize-for-comparison obj)
+          actual (roundtrip obj)]
+      (= expected actual))))
