@@ -1,6 +1,7 @@
 # TOON: Token-Oriented Object Notation
 
 [![Clojars Project](https://img.shields.io/clojars/v/com.vadelabs/toon.svg)](https://clojars.org/com.vadelabs/toon)
+[![CI](https://github.com/vadelabs/toon/actions/workflows/ci.yml/badge.svg)](https://github.com/vadelabs/toon/actions/workflows/ci.yml)
 [![SPEC v1.3](https://img.shields.io/badge/spec-v1.3-lightgray)](https://github.com/toon-format/spec)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
