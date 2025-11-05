@@ -4,7 +4,7 @@
   Parses array headers, delimited values, primitive tokens, and keys."
   (:require
     [clojure.string :as str]
-    [com.vadelabs.toon.shared.string-utils :as str-utils]))
+    [com.vadelabs.toon.utils :as str-utils]))
 
 
 ;; ============================================================================

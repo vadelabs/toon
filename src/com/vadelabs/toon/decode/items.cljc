@@ -7,7 +7,7 @@
     [com.vadelabs.toon.decode.objects :as objects]
     [com.vadelabs.toon.decode.parser :as parser]
     [com.vadelabs.toon.decode.scanner :as scanner]
-    [com.vadelabs.toon.shared.string-utils :as str-utils]))
+    [com.vadelabs.toon.utils :as str-utils]))
 
 
 ;; ============================================================================

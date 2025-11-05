@@ -4,7 +4,7 @@
   Handles encoding of nil, booleans, numbers, and strings."
   (:require
     [com.vadelabs.toon.constants :as const]
-    [com.vadelabs.toon.shared.quote :as quote]))
+    [com.vadelabs.toon.utils :as quote]))
 
 
 ;; ============================================================================

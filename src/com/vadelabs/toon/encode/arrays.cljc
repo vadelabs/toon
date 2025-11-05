@@ -11,7 +11,7 @@
     [com.vadelabs.toon.encode.normalize :as norm]
     [com.vadelabs.toon.encode.primitives :as prim]
     [com.vadelabs.toon.encode.writer :as writer]
-    [com.vadelabs.toon.shared.quote :as quote]))
+    [com.vadelabs.toon.utils :as quote]))
 
 
 ;; ============================================================================

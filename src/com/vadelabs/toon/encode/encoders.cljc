@@ -10,7 +10,7 @@
             [com.vadelabs.toon.encode.primitives :as prim]
             [com.vadelabs.toon.encode.arrays :as array]
             [com.vadelabs.toon.encode.writer :as writer]
-            [com.vadelabs.toon.shared.quote :as quote]
+            [com.vadelabs.toon.utils :as quote]
             [clojure.string :as str]))
 
 ;; Forward declarations for mutual recursion

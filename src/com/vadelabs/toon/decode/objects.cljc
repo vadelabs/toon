@@ -5,7 +5,7 @@
     [com.vadelabs.toon.decode.arrays :as arrays]
     [com.vadelabs.toon.decode.parser :as parser]
     [com.vadelabs.toon.decode.scanner :as scanner]
-    [com.vadelabs.toon.shared.string-utils :as str-utils]))
+    [com.vadelabs.toon.utils :as str-utils]))
 
 
 ;; Forward declaration for mutual recursion with items namespace
