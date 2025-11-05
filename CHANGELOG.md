@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-This project uses date-based versioning: `YYYY.MM.DD-N` where N is the commit count for that day.
+This project uses date-based versioning: `YYYY.MM.DD-N` where N is the number of commits since the last release.
 
 This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
 
