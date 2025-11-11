@@ -187,8 +187,7 @@
 (defn bracket-segment
   "Parses bracket segment to extract length and delimiter.
 
-  Format: [#?N<delim?>]
-    - Optional # length marker
+  Format: [N<delim?>]
     - Required N (numeric length)
     - Optional delimiter (tab or pipe char in brackets)
 
@@ -196,36 +195,32 @@
     - bracket-content: Content inside brackets (without [ ])
 
   Returns:
-    Map with {:length, :delimiter, :has-length-marker}
+    Map with {:length, :delimiter}
 
   Example:
-    (parse-bracket-segment \"3\") => {:length 3 :delimiter \",\" :has-length-marker false}
-    (parse-bracket-segment \"#3\") => {:length 3 :delimiter \",\" :has-length-marker true}
-    (parse-bracket-segment \"3|\") => {:length 3 :delimiter \"|\" :has-length-marker false}
-    (parse-bracket-segment \"3\\t\") => {:length 3 :delimiter \"\\t\" :has-length-marker false}"
+    (parse-bracket-segment \"3\") => {:length 3 :delimiter \",\"}
+    (parse-bracket-segment \"3|\") => {:length 3 :delimiter \"|\"}
+    (parse-bracket-segment \"3\\t\") => {:length 3 :delimiter \"\\t\"}"
   [bracket-content]
-  (let [has-marker (str/starts-with? bracket-content "#")
-        after-marker (if has-marker (subs bracket-content 1) bracket-content)
-        ;; Check for explicit delimiter at end
-        last-char (when (seq after-marker) (last after-marker))
+  (let [;; Check for explicit delimiter at end
+        last-char (when (seq bracket-content) (last bracket-content))
         has-delimiter (or (= last-char \|) (= last-char \tab))
         delimiter (cond
                     (= last-char \|) "|"
                     (= last-char \tab) "\t"
                     :else ",")
         numeric-part (if has-delimiter
-                       (subs after-marker 0 (dec (count after-marker)))
-                       after-marker)
+                       (subs bracket-content 0 (dec (count bracket-content)))
+                       bracket-content)
         length (number numeric-part)]
     (when-not length
       (throw (ex-info "Invalid array length in bracket segment: must be a number"
                       {:type :invalid-bracket-segment
                        :input bracket-content
-                       :suggestion "Use a numeric length: [3] or [#5] or [10|]"
-                       :examples ["[3]" "[#5]" "[10|]" "[2\t]"]})))
+                       :suggestion "Use a numeric length: [3] or [10|] or [2\\t]"
+                       :examples ["[3]" "[10|]" "[2\\t]"]})))
     {:length (int length)
-     :delimiter delimiter
-     :has-length-marker has-marker}))
+     :delimiter delimiter}))
 
 
 ;; ============================================================================

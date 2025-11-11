@@ -75,9 +75,9 @@
 
   Returns:
     Updated LineWriter"
-  [k v {:keys [delimiter length-marker]} depth writer]
+  [k v {:keys [delimiter]} depth writer]
   (let [quoted-key (quote/maybe-quote-key k)
-        header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon const/space)
+        header (str quoted-key (array/array-header (count v) delimiter) const/colon const/space)
         encoded-values (map #(prim/encode % delimiter) v)
         values-str (str/join delimiter encoded-values)
         line (str header values-str)]
@@ -100,27 +100,27 @@
 
   Returns:
     Updated LineWriter"
-  [k v {:keys [delimiter length-marker] :as options} depth writer]
+  [k v {:keys [delimiter] :as options} depth writer]
   (let [quoted-key (quote/maybe-quote-key k)]
     (cond
       ;; Uniform array of objects with common keys: tabular format
       (and (norm/array-of-objects? v)
            (seq (array/extract-common-keys v)))
-      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter))
+      (let [header (str quoted-key (array/array-header (count v) delimiter))
             w (writer/push writer depth header)]
-        (array/encode v length-marker delimiter depth w))
+        (array/encode v delimiter depth w))
 
       ;; Array of arrays: list format
       (norm/array-of-arrays? v)
-      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon)
+      (let [header (str quoted-key (array/array-header (count v) delimiter) const/colon)
             w (writer/push writer depth header)]
-        (array/of-arrays-items v length-marker delimiter (inc depth) w))
+        (array/of-arrays-items v delimiter (inc depth) w))
 
       ;; Mixed arrays or non-uniform objects: list format
       :else
-      (let [header (str quoted-key (array/array-header (count v) length-marker delimiter) const/colon)
+      (let [header (str quoted-key (array/array-header (count v) delimiter) const/colon)
             w (writer/push writer depth header)]
-        (array/mixed-items v length-marker delimiter (inc depth) w)))))
+        (array/mixed-items v delimiter (inc depth) w)))))
 
 
 (defn- object-pair
@@ -193,7 +193,7 @@
 
   Parameters:
     - obj: Map to encode
-    - options: Encoding options map with :delimiter, :length-marker
+    - options: Encoding options map with :delimiter
     - depth: Current indentation depth
     - writer: LineWriter instance
 
@@ -222,13 +222,13 @@
 
   Returns:
     Updated LineWriter."
-  [v {:keys [delimiter length-marker] :as options} depth writer]
+  [v {:keys [delimiter] :as options} depth writer]
   (cond
     (norm/primitive? v)
     (writer/push writer depth (prim/encode v delimiter))
 
     (vector? v)
-    (array/encode v length-marker delimiter depth writer)
+    (array/encode v delimiter depth writer)
 
     (map? v)
     (object v options depth writer)

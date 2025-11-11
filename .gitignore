@@ -27,3 +27,10 @@
 /checkouts
 /classes
 /target
+
+# Analysis and documentation files
+FINDINGS_SUMMARY.md
+INDEX.md
+ts-toon-analysis.md
+ts-toon-technical-details.md
+TS_TOON_CHANGES_VALIDATED.md

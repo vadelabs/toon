@@ -11,30 +11,18 @@
 ;; ============================================================================
 
 (deftest array-header-without-marker-test
-  (testing "Array header without length marker"
-    (is (= "[3]" (arr/array-header 3 false ",")))
-    (is (= "[0]" (arr/array-header 0 false ",")))
-    (is (= "[100]" (arr/array-header 100 false ",")))))
-
-
-(deftest array-header-with-marker-test
-  (testing "Array header with # length marker"
-    (is (= "[#3]" (arr/array-header 3 "#" ",")))
-    (is (= "[#0]" (arr/array-header 0 "#" ",")))
-    (is (= "[#100]" (arr/array-header 100 "#" ",")))))
+  (testing "Array header"
+    (is (= "[3]" (arr/array-header 3 ",")))
+    (is (= "[0]" (arr/array-header 0 ",")))
+    (is (= "[100]" (arr/array-header 100 ",")))))
 
 
 (deftest array-header-with-delimiter-markers-test
   (testing "Array header includes delimiter marker for non-comma delimiters"
-    (is (= "[3]" (arr/array-header 3 false ",")))     ; Comma: no marker
-    (is (= "[3|]" (arr/array-header 3 false "|")))    ; Pipe: shows marker
-    (is (= "[3\t]" (arr/array-header 3 false "\t")))  ; Tab: shows marker
-    (is (= "[3;]" (arr/array-header 3 false ";"))))   ; Semicolon: shows marker
-
-  (testing "Delimiter markers work with length markers"
-    (is (= "[#3]" (arr/array-header 3 "#" ",")))      ; Comma: no delimiter marker
-    (is (= "[#3|]" (arr/array-header 3 "#" "|")))     ; Pipe: shows delimiter marker
-    (is (= "[#3\t]" (arr/array-header 3 "#" "\t")))))
+    (is (= "[3]" (arr/array-header 3 ",")))     ; Comma: no marker
+    (is (= "[3|]" (arr/array-header 3 "|")))    ; Pipe: shows marker
+    (is (= "[3\t]" (arr/array-header 3 "\t")))  ; Tab: shows marker
+    (is (= "[3;]" (arr/array-header 3 ";")))))
 
 
 ;; ============================================================================
@@ -80,43 +68,43 @@
 
 (deftest encode-inline-array-numbers-test
   (testing "Encode array of numbers at root (depth 0)"
-    (let [w (arr/inline [1 2 3] false "," 0 (writer/create))]
+    (let [w (arr/inline [1 2 3] "," 0 (writer/create))]
       (is (= "[3]: 1,2,3" (writer/to-string w)))))
 
   (testing "Encode array of floats at nested level"
-    (let [w (arr/inline [1.5 2.5 3.5] false "," 1 (writer/create))]
+    (let [w (arr/inline [1.5 2.5 3.5] "," 1 (writer/create))]
       (is (= "  1.5,2.5,3.5" (writer/to-string w))))))
 
 
 (deftest encode-inline-array-strings-test
   (testing "Encode array of simple strings at root"
-    (let [w (arr/inline ["a" "b" "c"] false "," 0 (writer/create))]
+    (let [w (arr/inline ["a" "b" "c"] "," 0 (writer/create))]
       (is (= "[3]: a,b,c" (writer/to-string w)))))
 
   (testing "Encode array with strings needing quotes at nested level"
-    (let [w (arr/inline ["a" "b,c" "d"] false "," 1 (writer/create))]
+    (let [w (arr/inline ["a" "b,c" "d"] "," 1 (writer/create))]
       (is (= "  a,\"b,c\",d" (writer/to-string w))))))
 
 
 (deftest encode-inline-array-mixed-primitives-test
   (testing "Encode array of mixed primitive types at root"
-    (let [w (arr/inline [1 "two" true nil] false "," 0 (writer/create))]
+    (let [w (arr/inline [1 "two" true nil] "," 0 (writer/create))]
       (is (= "[4]: 1,two,true,null" (writer/to-string w))))))
 
 
 (deftest encode-inline-array-with-tab-delimiter-test
   (testing "Encode array with tab delimiter at root"
-    (let [w (arr/inline ["a" "b" "c"] false "\t" 0 (writer/create))]
+    (let [w (arr/inline ["a" "b" "c"] "\t" 0 (writer/create))]
       (is (= "[3\t]: a\tb\tc" (writer/to-string w)))))
 
   (testing "Tab delimiter doesn't quote commas at nested level"
-    (let [w (arr/inline ["a,b" "c,d"] false "\t" 1 (writer/create))]
+    (let [w (arr/inline ["a,b" "c,d"] "\t" 1 (writer/create))]
       (is (= "  a,b\tc,d" (writer/to-string w))))))
 
 
 (deftest encode-inline-array-indented-test
   (testing "Encode array with indentation (at nested level, no header)"
-    (let [w (arr/inline [1 2 3] false "," 1 (writer/create))]
+    (let [w (arr/inline [1 2 3] "," 1 (writer/create))]
       (is (= "  1,2,3" (writer/to-string w))))))
 
 
@@ -125,18 +113,14 @@
 ;; ============================================================================
 
 (deftest encode-tabular-array-header-test
-  (testing "Encode tabular header without length marker"
-    (let [w (arr/tabular-header 2 ["id" "name"] false "," 0 (writer/create))]
-      (is (= "[2]{id,name}:" (writer/to-string w)))))
-
-  (testing "Encode tabular header with length marker"
-    (let [w (arr/tabular-header 3 ["a" "b" "c"] "#" "," 0 (writer/create))]
-      (is (= "[#3]{a,b,c}:" (writer/to-string w))))))
+  (testing "Encode tabular header"
+    (let [w (arr/tabular-header 2 ["id" "name"] "," 0 (writer/create))]
+      (is (= "[2]{id,name}:" (writer/to-string w))))))
 
 
 (deftest encode-tabular-array-header-with-tab-delimiter-test
   (testing "Encode tabular header with tab delimiter"
-    (let [w (arr/tabular-header 2 ["x" "y"] false "\t" 0 (writer/create))]
+    (let [w (arr/tabular-header 2 ["x" "y"] "\t" 0 (writer/create))]
       (is (= "[2\t]{x\ty}:" (writer/to-string w))))))
 
 
@@ -171,24 +155,17 @@
   (testing "Encode simple tabular array"
     (let [objects [{"id" 1 "name" "Alice"}
                    {"id" 2 "name" "Bob"}]
-          w (arr/tabular objects false "," 0 (writer/create))]
+          w (arr/tabular objects "," 0 (writer/create))]
       (is (= "[2]{id,name}:\n  1,Alice\n  2,Bob" (writer/to-string w))))))
 
 
-(deftest encode-tabular-array-with-length-marker-test
-  (testing "Encode tabular array with length marker"
-    (let [objects [{"x" 10 "y" 20}
-                   {"x" 30 "y" 40}
-                   {"x" 50 "y" 60}]
-          w (arr/tabular objects "#" "," 0 (writer/create))]
-      (is (= "[#3]{x,y}:\n  10,20\n  30,40\n  50,60" (writer/to-string w))))))
 
 
 (deftest encode-tabular-array-subset-keys-test
   (testing "Encode tabular array with subset of common keys"
     (let [objects [{"id" 1 "name" "Alice" "extra" 99}
                    {"id" 2 "name" "Bob"}]
-          w (arr/tabular objects false "," 0 (writer/create))]
+          w (arr/tabular objects "," 0 (writer/create))]
       ;; Should only include "id" and "name" (common keys)
       (is (= "[2]{id,name}:\n  1,Alice\n  2,Bob" (writer/to-string w))))))
 
@@ -196,7 +173,7 @@
 (deftest encode-tabular-array-no-common-keys-test
   (testing "Tabular array with no common keys returns writer unchanged"
     (let [objects [{"a" 1} {"b" 2}]
-          w (arr/tabular objects false "," 0 (writer/create))]
+          w (arr/tabular objects "," 0 (writer/create))]
       (is (= "" (writer/to-string w))))))
 
 
@@ -207,28 +184,23 @@
 (deftest encode-array-of-arrays-basic-test
   (testing "Encode simple array of arrays with list format"
     (let [arrays [[1 2] [3 4]]
-          w (arr/of-arrays arrays false "," 0 (writer/create))]
+          w (arr/of-arrays arrays "," 0 (writer/create))]
       (is (= "[2]:\n  - [2]: 1,2\n  - [2]: 3,4" (writer/to-string w))))))
 
 
-(deftest encode-array-of-arrays-with-length-marker-test
-  (testing "Encode array of arrays with length marker"
-    (let [arrays [["a" "b"] ["c" "d"] ["e" "f"]]
-          w (arr/of-arrays arrays "#" "," 0 (writer/create))]
-      (is (= "[#3]:\n  - [#2]: a,b\n  - [#2]: c,d\n  - [#2]: e,f" (writer/to-string w))))))
 
 
 (deftest encode-array-of-arrays-variable-lengths-test
   (testing "Encode array of arrays with variable lengths"
     (let [arrays [[1 2 3] [4 5] [6]]
-          w (arr/of-arrays arrays false "," 0 (writer/create))]
+          w (arr/of-arrays arrays "," 0 (writer/create))]
       (is (= "[3]:\n  - [3]: 1,2,3\n  - [2]: 4,5\n  - [1]: 6" (writer/to-string w))))))
 
 
 (deftest encode-array-of-arrays-with-tab-delimiter-test
   (testing "Encode array of arrays with tab delimiter"
     (let [arrays [[1 2] [3 4]]
-          w (arr/of-arrays arrays false "\t" 0 (writer/create))]
+          w (arr/of-arrays arrays "\t" 0 (writer/create))]
       (is (= "[2\t]:\n  - [2\t]: 1\t2\n  - [2\t]: 3\t4" (writer/to-string w))))))
 
 
@@ -238,31 +210,31 @@
 
 (deftest encode-array-empty-test
   (testing "Encode empty array at root"
-    (let [w (arr/encode [] false "," 0 (writer/create))]
+    (let [w (arr/encode [] "," 0 (writer/create))]
       (is (= "[0]" (writer/to-string w))))))
 
 
 (deftest encode-array-primitives-test
   (testing "Encode array of primitives at root includes header"
-    (let [w (arr/encode [1 2 3] false "," 0 (writer/create))]
+    (let [w (arr/encode [1 2 3] "," 0 (writer/create))]
       (is (= "[3]: 1,2,3" (writer/to-string w))))))
 
 
 (deftest encode-array-objects-test
   (testing "Encode array of objects dispatches to tabular"
-    (let [w (arr/encode [{"a" 1} {"a" 2}] false "," 0 (writer/create))]
+    (let [w (arr/encode [{"a" 1} {"a" 2}] "," 0 (writer/create))]
       (is (= "[2]{a}:\n  1\n  2" (writer/to-string w))))))
 
 
 (deftest encode-array-arrays-test
   (testing "Encode array of arrays dispatches to list format"
-    (let [w (arr/encode [[1 2] [3 4]] false "," 0 (writer/create))]
+    (let [w (arr/encode [[1 2] [3 4]] "," 0 (writer/create))]
       (is (= "[2]:\n  - [2]: 1,2\n  - [2]: 3,4" (writer/to-string w))))))
 
 
 (deftest encode-array-with-indentation-test
   (testing "Encode array respects depth parameter"
-    (let [w (arr/encode [1 2 3] false "," 2 (writer/create))]
+    (let [w (arr/encode [1 2 3] "," 2 (writer/create))]
       (is (= "    1,2,3" (writer/to-string w))))))
 
 
@@ -273,42 +245,37 @@
 (deftest encode-mixed-array-primitives-test
   (testing "Encode mixed array of primitives with list markers"
     (let [test-arr [1 "text" true nil]
-          w (arr/mixed test-arr false "," 0 (writer/create))]
+          w (arr/mixed test-arr "," 0 (writer/create))]
       (is (= "[4]:\n  - 1\n  - text\n  - true\n  - null" (writer/to-string w))))))
 
 
 (deftest encode-mixed-array-with-nested-arrays-test
   (testing "Encode mixed array containing primitive arrays"
     (let [test-arr [[1 2] [3 4 5]]
-          w (arr/mixed test-arr false "," 0 (writer/create))]
+          w (arr/mixed test-arr "," 0 (writer/create))]
       (is (= "[2]:\n  - [2]: 1,2\n  - [3]: 3,4,5" (writer/to-string w))))))
 
 
 (deftest encode-mixed-array-primitives-and-arrays-test
   (testing "Encode mixed array with primitives and arrays"
     (let [test-arr [1 [2 3] "text"]
-          w (arr/mixed test-arr false "," 0 (writer/create))]
+          w (arr/mixed test-arr "," 0 (writer/create))]
       (is (= "[3]:\n  - 1\n  - [2]: 2,3\n  - text" (writer/to-string w))))))
 
 
-(deftest encode-mixed-array-with-length-marker-test
-  (testing "Encode mixed array with length marker"
-    (let [test-arr [1 [2 3]]
-          w (arr/mixed test-arr "#" "," 0 (writer/create))]
-      (is (= "[#2]:\n  - 1\n  - [#2]: 2,3" (writer/to-string w))))))
 
 
 (deftest encode-mixed-array-with-tab-delimiter-test
   (testing "Encode mixed array with tab delimiter"
     (let [test-arr [1 [2 3]]
-          w (arr/mixed test-arr false "\t" 0 (writer/create))]
+          w (arr/mixed test-arr "\t" 0 (writer/create))]
       (is (= "[2\t]:\n  - 1\n  - [2\t]: 2\t3" (writer/to-string w))))))
 
 
 (deftest encode-mixed-array-dispatch-test
   (testing "encode-array dispatches to mixed encoding for mixed arrays"
     (let [test-arr [1 "text" [2 3]]
-          w (arr/encode test-arr false "," 0 (writer/create))]
+          w (arr/encode test-arr "," 0 (writer/create))]
       (is (= "[3]:\n  - 1\n  - text\n  - [2]: 2,3" (writer/to-string w))))))
 
 
@@ -343,7 +310,7 @@
 (deftest encode-mixed-array-with-objects-test
   (testing "Encode mixed array with primitives and objects"
     (let [test-arr [1 {"a" 1} "text"]
-          w (arr/encode test-arr false "," 0 (writer/create))
+          w (arr/encode test-arr "," 0 (writer/create))
           result (writer/to-string w)]
       (is (= "[3]:\n  - 1\n  - a: 1\n  - text" result)))))
 
@@ -351,7 +318,7 @@
 (deftest encode-mixed-array-with-multi-key-objects-test
   (testing "Encode mixed array with objects having NO common keys"
     (let [test-arr [{"name" "Alice" "age" 30} {"city" "NYC" "zip" "10001"}]
-          w (arr/encode test-arr false "," 0 (writer/create))
+          w (arr/encode test-arr "," 0 (writer/create))
           result (writer/to-string w)]
       ;; No common keys, so uses mixed array with list markers
       ;; Each object should have first key on hyphen line, rest indented

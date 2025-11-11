@@ -344,22 +344,6 @@
 ;; Length Marker Options
 ;; ============================================================================
 
-(defspec roundtrip-with-length-marker 50
-  (prop/for-all [arr gen-int-vector]
-                (let [encoded (toon/encode arr {:length-marker "#"})
-                      decoded (toon/decode encoded)
-                      expected (mapv double arr)]
-                  (= expected decoded))))
-
-
-(defspec object-with-array-and-length-marker 50
-  (prop/for-all [name gen-non-empty-string
-                 tags gen-string-vector]
-                (let [obj {"name" name "tags" tags}
-                      encoded (toon/encode obj {:length-marker "#"})
-                      decoded (toon/decode encoded)
-                      expected (normalize-for-comparison obj)]
-                  (= expected decoded))))
 
 
 ;; ============================================================================

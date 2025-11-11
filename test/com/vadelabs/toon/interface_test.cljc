@@ -28,8 +28,7 @@
     (is (= "false" const/false-literal)))
 
   (testing "Default options"
-    (is (= 2 const/default-indent))
-    (is (= false const/default-length-marker))))
+    (is (= 2 const/default-indent))))
 
 
 ;; ============================================================================

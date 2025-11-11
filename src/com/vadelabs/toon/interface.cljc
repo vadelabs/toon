@@ -22,7 +22,6 @@
     - options: Optional map with keys:
       - :indent - Number of spaces per indentation level (default: 2)
       - :delimiter - Delimiter for array values: \",\" (default), \"\\t\", or \"|\"
-      - :length-marker - Array length marker: \"#\" or false (default: false)
 
   Returns:
     String in TOON format with no trailing newline or spaces.
@@ -36,14 +35,10 @@
     ;=> \"[2]{id,name}:\\n  1,Alice\\n  2,Bob\"
 
     (encode {:tags [\"a\" \"b\" \"c\"]} {:delimiter \"\\t\"})
-    ;=> \"tags[3\\t]: a\\tb\\tc\"
-
-    (encode {:items [1 2 3]} {:length-marker \"#\"})
-    ;=> \"items[#3]: 1,2,3\""
+    ;=> \"tags[3\\t]: a\\tb\\tc\""
   [input & [options]]
   (let [opts (merge {:indent 2
-                     :delimiter ","
-                     :length-marker false}
+                     :delimiter ","}
                     options)]
     ;; Normalize input to JSON-compatible values
     (let [normalized (com.vadelabs.toon.encode.normalize/normalize-value input)

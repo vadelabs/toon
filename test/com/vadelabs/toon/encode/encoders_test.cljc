@@ -9,11 +9,9 @@
 
 ;; Test options helper
 (defn make-options
-  ([] (make-options "," false))
-  ([delimiter] (make-options delimiter false))
-  ([delimiter length-marker]
+  ([] (make-options ","))
+  ([delimiter]
    {:delimiter delimiter
-    :length-marker length-marker
     :indent 2}))
 
 
@@ -81,11 +79,6 @@
       (is (= "scores[3]: 100,95,88" (writer/to-string w))))))
 
 
-(deftest encode-key-with-primitive-array-length-marker-test
-  (testing "Encode key with array using length marker"
-    (let [opts (make-options "," "#")
-          w (obj/key-value-pair "items" [1 2 3] opts 0 (writer/create))]
-      (is (= "items[#3]: 1,2,3" (writer/to-string w))))))
 
 
 (deftest encode-key-with-array-of-objects-test

@@ -51,4 +51,3 @@
 
 ;; Default options
 (def default-indent 2)
-(def default-length-marker false)

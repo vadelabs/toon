@@ -210,40 +210,25 @@
   (testing "Parse simple bracket with length"
     (let [result (parser/bracket-segment "3")]
       (is (= 3 (:length result)))
-      (is (= "," (:delimiter result)))
-      (is (false? (:has-length-marker result))))))
+      (is (= "," (:delimiter result))))))
 
 
-(deftest parse-bracket-with-length-marker-test
-  (testing "Parse bracket with length marker"
-    (let [result (parser/bracket-segment "#3")]
-      (is (= 3 (:length result)))
-      (is (= "," (:delimiter result)))
-      (is (true? (:has-length-marker result))))))
 
 
 (deftest parse-bracket-with-pipe-delimiter-test
   (testing "Parse bracket with pipe delimiter"
     (let [result (parser/bracket-segment "3|")]
       (is (= 3 (:length result)))
-      (is (= "|" (:delimiter result)))
-      (is (false? (:has-length-marker result))))))
+      (is (= "|" (:delimiter result))))))
 
 
 (deftest parse-bracket-with-tab-delimiter-test
   (testing "Parse bracket with tab delimiter"
     (let [result (parser/bracket-segment (str "3" \tab))]
       (is (= 3 (:length result)))
-      (is (= "\t" (:delimiter result)))
-      (is (false? (:has-length-marker result))))))
+      (is (= "\t" (:delimiter result))))))
 
 
-(deftest parse-bracket-with-marker-and-delimiter-test
-  (testing "Parse bracket with both marker and delimiter"
-    (let [result (parser/bracket-segment "#5|")]
-      (is (= 5 (:length result)))
-      (is (= "|" (:delimiter result)))
-      (is (true? (:has-length-marker result))))))
 
 
 (deftest parse-invalid-bracket-segment-test
@@ -297,11 +282,6 @@
       (is (= "a,b,c" (:inline-values result))))))
 
 
-(deftest parse-array-header-with-length-marker-test
-  (testing "Parse array header with length marker"
-    (let [result (parser/array-header-line "[#3]:")]
-      (is (= 3 (:length result)))
-      (is (true? (:has-length-marker result))))))
 
 
 (deftest parse-array-header-with-delimiter-test
@@ -313,11 +293,10 @@
 
 (deftest parse-array-header-complex-test
   (testing "Parse complex array header with all features"
-    (let [result (parser/array-header-line "data[#5|]{a,b,c}: 1|2|3")]
+    (let [result (parser/array-header-line "data[5|]{a,b,c}: 1|2|3")]
       (is (= "data" (:key result)))
       (is (= 5 (:length result)))
       (is (= "|" (:delimiter result)))
-      (is (true? (:has-length-marker result)))
       (is (= ["a" "b" "c"] (:fields result)))
       (is (= "1|2|3" (:inline-values result))))))
 
