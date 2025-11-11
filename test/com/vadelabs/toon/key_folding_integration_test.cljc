@@ -156,3 +156,90 @@
       (is (some #(clojure.string/includes? % "name: MyApp") lines))
       (is (some #(clojure.string/includes? % "config.server.host: localhost") lines))
       (is (some #(= "version: \"1.0\"" %) lines)))))
+
+
+;; ============================================================================
+;; Edge Cases
+;; ============================================================================
+
+(deftest key-folding-underscore-prefix-test
+  (testing "Folds keys starting with underscore"
+    (let [data {"_private" {"_config" {"_value" "secret"}}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (= "_private._config._value: secret" result)))))
+
+
+(deftest key-folding-very-deep-chain-test
+  (testing "Folds very deep nested chains"
+    (let [data {"a" {"b" {"c" {"d" {"e" {"f" "deep"}}}}}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (= "a.b.c.d.e.f: deep" result)))))
+
+
+(deftest key-folding-mixed-case-test
+  (testing "Folds mixed case identifiers"
+    (let [data {"AppData" {"MyConfig" {"ServerName" "localhost"}}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (= "AppData.MyConfig.ServerName: localhost" result)))))
+
+
+(deftest key-folding-numeric-suffix-test
+  (testing "Folds keys with numeric suffixes"
+    (let [data {"data1" {"config2" {"server3" "localhost"}}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (= "data1.config2.server3: localhost" result)))))
+
+
+(deftest key-folding-with-tab-delimiter-test
+  (testing "Folds with tab delimiter for arrays"
+    (let [data {"data" {"tags" ["a" "b" "c"]}}
+          result (toon/encode data {:key-folding :safe :delimiter "\t"})]
+      (is (= "data.tags[3\t]: a\tb\tc" result)))))
+
+
+(deftest key-folding-with-pipe-delimiter-test
+  (testing "Folds with pipe delimiter for arrays"
+    (let [data {"data" {"tags" ["a" "b" "c"]}}
+          result (toon/encode data {:key-folding :safe :delimiter "|"})]
+      (is (= "data.tags[3|]: a|b|c" result)))))
+
+
+(deftest key-folding-flatten-depth-zero-test
+  (testing "No folding when flatten-depth is 0"
+    (let [data {"data" {"config" {"server" "localhost"}}}
+          result (toon/encode data {:key-folding :safe :flatten-depth 0})]
+      (is (= "data:\n  config:\n    server: localhost" result)))))
+
+
+(deftest key-folding-partial-with-array-objects-test
+  (testing "Partially folds with array of objects"
+    (let [data {"app" {"users" [{"id" 1} {"id" 2}]}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (clojure.string/includes? result "app.users[2]:")))))
+
+
+(deftest key-folding-empty-nested-objects-test
+  (testing "Folds chains with multiple empty objects"
+    (let [data {"a" {"b" {"c" {}}}}
+          result (toon/encode data {:key-folding :safe})]
+      (is (= "a.b.c:" result)))))
+
+
+(deftest key-folding-roundtrip-underscore-test
+  (testing "Roundtrip with underscore-prefixed keys"
+    (let [original {"_data" {"_config" {"_server" "localhost"}}}
+          encoded (toon/encode original {:key-folding :safe})
+          decoded (toon/decode encoded {:expand-paths :safe})]
+      (is (= "_data._config._server: localhost" encoded))
+      (is (= original decoded)))))
+
+
+(deftest key-folding-multiple-chains-same-prefix-test
+  (testing "Folds multiple chains with same prefix"
+    (let [data {"user" {"profile" {"name" "Alice"}}
+                "user2" {"profile" {"name" "Bob"}}}
+          result (toon/encode data {:key-folding :safe})
+          lines (clojure.string/split-lines result)]
+      (is (= 2 (count lines)))
+      (is (some #(= "user.profile.name: Alice" %) lines))
+      (is (some #(= "user2.profile.name: Bob" %) lines)))))

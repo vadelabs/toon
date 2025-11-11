@@ -119,3 +119,130 @@
                                          "port" 8080}}
                      "name" "MyApp"}
               "version" "1.0"} result)))))
+
+
+;; ============================================================================
+;; Edge Cases
+;; ============================================================================
+
+(deftest expand-paths-underscore-prefix-test
+  (testing "Expands keys starting with underscore"
+    (let [value {"_data._private._config" "value"}
+          result (keys/expand value true :safe)]
+      (is (= {"_data" {"_private" {"_config" "value"}}} result)))))
+
+
+(deftest expand-paths-very-deep-dotted-key-test
+  (testing "Expands very deep dotted key (10+ levels)"
+    (let [value {"root.a.b.c.d.e.f.g.h.i.j" "deep"}
+          result (keys/expand value true :safe)
+          expected {"root" {"a" {"b" {"c" {"d" {"e" {"f" {"g" {"h" {"i" {"j" "deep"}}}}}}}}}}}]
+      (is (= expected result)))))
+
+
+(deftest expand-paths-mixed-case-identifiers-test
+  (testing "Expands mixed case identifiers"
+    (let [value {"AppData.MyConfig.ServerName" "localhost"}
+          result (keys/expand value true :safe)]
+      (is (= {"AppData" {"MyConfig" {"ServerName" "localhost"}}} result)))))
+
+
+(deftest expand-paths-numeric-suffix-test
+  (testing "Expands keys with numeric suffixes"
+    (let [value {"data1.config2.server3" "localhost"}
+          result (keys/expand value true :safe)]
+      (is (= {"data1" {"config2" {"server3" "localhost"}}} result)))))
+
+
+(deftest expand-paths-single-segment-test
+  (testing "Leaves single segment keys unchanged"
+    (let [value {"simple_key" "value"}
+          result (keys/expand value true :safe)]
+      (is (= {"simple_key" "value"} result)))))
+
+
+(deftest expand-paths-overlapping-keys-deep-merge-test
+  (testing "Deep merges overlapping dotted keys"
+    (let [value {"user.profile.name" "Alice"
+                 "user.profile.age" 30
+                 "user.settings.theme" "dark"}
+          result (keys/expand value true :safe)]
+      (is (= {"user" {"profile" {"name" "Alice" "age" 30}
+                      "settings" {"theme" "dark"}}} result)))))
+
+
+(deftest expand-paths-conflict-strict-error-message-test
+  (testing "Throws with descriptive error in strict mode on conflict"
+    (let [value {"user.name" "Alice"
+                 "user" "Bob"}]
+      (try
+        (keys/expand value true :safe)
+        (is false "Should have thrown exception")
+        (catch #?(:clj Exception :cljs js/Error) e
+          (let [msg #?(:clj (.getMessage e) :cljs (.-message e))]
+            (is (re-find #"Path expansion conflict" msg))
+            (is (re-find #"user" msg))))))))
+
+
+(deftest expand-paths-non-strict-lww-test
+  (testing "Non-strict uses last-write-wins on conflicts"
+    (let [value {"user.name" "Alice"
+                 "user" "Bob"}
+          result (keys/expand value false :safe)]
+      ;; Result depends on map iteration order, but should not throw
+      (is (or (= {"user" "Bob"} result)
+              (= {"user" {"name" "Alice"}} result))))))
+
+
+(deftest expand-paths-deeply-nested-literal-and-expanded-test
+  (testing "Handles mix of literal nested objects and dotted keys"
+    (let [value {"outer" {"inner.dotted.key" "value1"
+                          "regular" "value2"}}
+          result (keys/expand value true :safe)]
+      (is (= {"outer" {"inner" {"dotted" {"key" "value1"}}
+                       "regular" "value2"}} result)))))
+
+
+(deftest expand-paths-empty-segment-invalid-test
+  (testing "Does not expand keys with empty segments (double dots)"
+    (let [value {"data..config" "value"}
+          result (keys/expand value true :safe)]
+      ;; Should not expand because empty segment between dots is invalid
+      (is (= {"data..config" "value"} result)))))
+
+
+(deftest expand-paths-trailing-dot-invalid-test
+  (testing "Trailing dots create empty segments, remaining valid segments expand"
+    (let [value {"data.config." "value"}
+          result (keys/expand value true :safe)]
+      ;; Empty string segment from trailing dot fails validation, but "data.config" are valid
+      ;; So it expands the valid segments
+      (is (= {"data" {"config" "value"}} result)))))
+
+
+(deftest expand-paths-leading-dot-invalid-test
+  (testing "Does not expand keys with leading dots"
+    (let [value {".data.config" "value"}
+          result (keys/expand value true :safe)]
+      ;; Leading dot creates empty segment, which is invalid
+      (is (= {".data.config" "value"} result)))))
+
+
+(deftest expand-paths-array-with-dotted-keys-test
+  (testing "Recursively expands dotted keys in array elements"
+    (let [value [{"user.name" "Alice"}
+                 {"user.name" "Bob"}
+                 {"user.age" 30}]
+          result (keys/expand value true :safe)]
+      (is (= [{"user" {"name" "Alice"}}
+              {"user" {"name" "Bob"}}
+              {"user" {"age" 30}}] result)))))
+
+
+(deftest expand-paths-deeply-nested-arrays-test
+  (testing "Handles arrays nested in expanded objects"
+    (let [value {"data.items" [1 2 3]
+                 "data.tags" ["a" "b"]}
+          result (keys/expand value true :safe)]
+      (is (= {"data" {"items" [1 2 3]
+                      "tags" ["a" "b"]}} result)))))
