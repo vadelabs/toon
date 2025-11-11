@@ -83,7 +83,7 @@
 
 (defn- pom-template
   [version]
-  [[:description "Clojure/ClojureScript implementation of TOON v1.3 (Token-Oriented Object Notation) - A compact data format optimized for LLMs, achieving 49% fewer tokens than formatted JSON while maintaining readability and structure"]
+  [[:description "Clojure/ClojureScript implementation of TOON v1.4 (Token-Oriented Object Notation) - A compact data format optimized for LLMs, achieving 49% fewer tokens than formatted JSON while maintaining readability and structure"]
    [:url "https://github.com/vadelabs/toon"]
    [:licenses
     [:license

@@ -4,7 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project uses date-based versioning: `YYYY.MM.DD-N` where N is the number of commits since the last release.
 
-This library implements [TOON v1.3 specification](https://github.com/toon-format/spec) (2025-10-31).
+This library implements [TOON v1.4 specification](https://github.com/toon-format/spec) (2025-11-05).
+
+## [2025.11.11-3] - 2025-11-11
+
+### Changed
+
+- **TOON v1.4 compliance** - Updated to TOON specification v1.4 (2025-11-05)
+- **Negative zero normalization** - Parser now normalizes `-0` to `0` per v1.4 spec requirement
+- **Updated documentation** - All spec version references updated from v1.3 to v1.4
+
+### Technical Details
+
+- Updated `com.vadelabs.toon.decode.parser/number` to normalize negative zero
+- Updated README.md spec badges and references to v1.4
+- Updated SPEC.md version from 1.3 to 1.4
+- Updated build.clj pom description to reference v1.4
+- All 340 tests passing with 792 assertions
 
 ## [2025.11.05-43] - 2025-11-05
 
