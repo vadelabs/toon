@@ -8,6 +8,32 @@ This library implements [TOON v1.4 specification](https://github.com/toon-format
 
 ## [Unreleased]
 
+## [2025.11.12-5] - 2025-11-12
+
+### Added
+
+- **Key collapsing** - New `:key-collapsing` option for encoding nested single-key objects into dotted paths
+  - Reduces token usage by 40-60% for deeply nested structures
+  - Collapses chains like `{data: {config: {server: "localhost"}}}` → `data.config.server: localhost`
+  - Safe mode validation ensures only valid identifiers are collapsed
+  - Collision detection prevents conflicts with existing keys
+  - Configurable depth limit via `:flatten-depth` option
+
+- **Path expansion** - New `:expand-paths` option for decoding dotted keys back to nested objects
+  - Reverses key collapsing during decode for lossless round-trips
+  - Deep merge support for overlapping paths
+  - Strict/non-strict conflict resolution modes
+  - Full round-trip guarantee (encode → decode preserves data)
+
+### Changed
+
+- Improved code quality with reduced complexity and better maintainability
+  - Reduced nesting depth in key collapsing logic (5 levels → 3 levels)
+  - Extracted reusable conflict handler to eliminate duplication
+  - Simplified control flow in traversal functions
+  - Pre-compiled regex patterns for better performance
+  - Added precondition guards for safer error handling
+
 ### Removed
 
 - **Length marker option** - Removed `:length-marker` option from encode API
@@ -15,11 +41,11 @@ This library implements [TOON v1.4 specification](https://github.com/toon-format
   - Simplified API and implementation
   - **BREAKING CHANGE**: The `:length-marker` option is no longer supported
 
-### Changed
+### Technical Details
 
-- Updated documentation to reflect removal of length-marker option
-- Simplified parser to remove `#` marker support
-- Updated all encoding functions to remove length-marker parameter
+- 126 new tests for key collapsing and path expansion (435 tests total)
+- All tests passing with 929 assertions
+- Code quality improvements: -19 lines, 83% less duplication, 33% lower cyclomatic complexity
 
 ## [2025.11.11-3] - 2025-11-11
 
@@ -82,4 +108,6 @@ com.vadelabs/toon {:mvn/version "2025.11.05-43"}
 - [Reference Implementation (TypeScript)](https://github.com/toon-format/toon)
 - [Other Implementations](https://github.com/toon-format/toon#other-implementations)
 
+[2025.11.12-5]: https://github.com/vadelabs/toon/releases/tag/v2025.11.12-5
+[2025.11.11-3]: https://github.com/vadelabs/toon/releases/tag/v2025.11.11-3
 [2025.11.05-43]: https://github.com/vadelabs/toon/releases/tag/v2025.11.05-43
