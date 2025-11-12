@@ -120,7 +120,10 @@
 
     ;; Sets → sorted vectors
     (set? value)
-    (vec (sort (map normalize-value value)))
+    (->> value
+         (map normalize-value)
+         sort
+         vec)
 
     ;; Maps → maps with string keys
     (map? value)

@@ -58,9 +58,9 @@
   (when (seq objects)
     (let [first-keys (keys (first objects))
           all-key-sets (map (comp set keys) objects)]
-      (vec (filter (fn [k]
-                     (every? #(contains? % k) all-key-sets))
-                   first-keys)))))
+      (filterv (fn [k]
+                 (every? #(contains? % k) all-key-sets))
+               first-keys))))
 
 
 (defn- encode-delimited-values
@@ -80,8 +80,9 @@
     (encode-delimited-values [\"a\" \"b\" \"c\"] \"|\")
     ;=> \"a|b|c\""
   [values delimiter]
-  (let [encoded-values (map #(prim/encode % delimiter) values)]
-    (str/join delimiter encoded-values)))
+  (->> values
+       (map #(prim/encode % delimiter))
+       (str/join delimiter)))
 
 
 ;; ============================================================================
