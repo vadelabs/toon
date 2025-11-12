@@ -12,18 +12,6 @@
 ;; Key Collapsing Helpers
 ;; ============================================================================
 
-(defn- json-object?
-  "Returns true if value is a map (JSON object)."
-  [value]
-  (map? value))
-
-
-(defn- empty-object?
-  "Returns true if value is an empty map."
-  [value]
-  (and (map? value) (empty? value)))
-
-
 (defn- chain
   "Returns chain information for a single-key object traversal.
 
@@ -44,34 +32,23 @@
   [start-key start-value max-depth]
   (loop [segments [start-key]
          current-value start-value]
-    (if (>= (count segments) max-depth)
-      ;; Depth limit reached
-      {:segments segments
-       :tail current-value
-       :leaf-value current-value}
-      ;; Try to continue the chain
-      (if-not (json-object? current-value)
-        ;; Not an object - this is a leaf
+    (let [depth-reached? (>= (count segments) max-depth)
+          is-object? (map? current-value)
+          ks (when is-object? (keys current-value))
+          single-key? (and is-object? (= (count ks) 1))]
+
+      (cond
+        ;; Terminal conditions - stop traversal
+        (or depth-reached? (not is-object?) (not single-key?))
         {:segments segments
-         :tail nil
+         :tail (when (and is-object? (seq ks)) current-value)
          :leaf-value current-value}
-        ;; It's an object - check if it has exactly one key
-        (let [ks (keys current-value)]
-          (if (not= (count ks) 1)
-            ;; Not a single-key object - stop here
-            (if (empty? ks)
-              ;; Empty object is a leaf
-              {:segments segments
-               :tail nil
-               :leaf-value current-value}
-              ;; Multi-key object - return as tail
-              {:segments segments
-               :tail current-value
-               :leaf-value current-value})
-            ;; Single-key object - continue the chain
-            (let [next-key (first ks)
-                  next-value (get current-value next-key)]
-              (recur (conj segments next-key) next-value))))))))
+
+        ;; Continue traversal for single-key object
+        :else
+        (let [next-key (first ks)
+              next-value (get current-value next-key)]
+          (recur (conj segments next-key) next-value))))))
 
 
 (defn- dotted-key
@@ -117,33 +94,23 @@
   ([key value siblings options]
    (collapse key value siblings options nil nil))
   ([key value siblings options root-literal-keys path-prefix]
-   ;; Only collapse when safe mode is enabled
-   (when (= (:key-collapsing options) :safe)
-     ;; Can only collapse objects
-     (when (json-object? value)
-       (let [;; Use provided flatten-depth or fall back to options default
-             effective-flatten-depth (:flatten-depth options ##Inf)
+   (when (and (= (:key-collapsing options) :safe)
+              (map? value))
+     (let [effective-flatten-depth (:flatten-depth options ##Inf)
+           {:keys [segments tail leaf-value]} (chain key value effective-flatten-depth)]
 
-             ;; Collect the chain of single-key objects
-             {:keys [segments tail leaf-value]} (chain key value effective-flatten-depth)]
+       (when (and (>= (count segments) 2)
+                  (every? utils/identifier-segment? segments))
+         (let [collapsed-key (dotted-key segments)
+               absolute-path (if path-prefix
+                               (str path-prefix const/dot collapsed-key)
+                               collapsed-key)
+               sibling-collision? (some #{collapsed-key} siblings)
+               root-collision? (and root-literal-keys
+                                   (contains? root-literal-keys absolute-path))]
 
-         ;; Need at least 2 segments for collapsing to be worthwhile
-         (when (>= (count segments) 2)
-           ;; Validate all segments are safe identifiers
-           (when (every? utils/identifier-segment? segments)
-             (let [;; Build the collapsed key (relative to current nesting level)
-                   collapsed-key (dotted-key segments)
-
-                   ;; Build the absolute path from root
-                   absolute-path (if path-prefix
-                                   (str path-prefix const/dot collapsed-key)
-                                   collapsed-key)]
-
-               ;; Check for collision with existing literal sibling keys (at current level)
-               (when-not (some #{collapsed-key} siblings)
-                 ;; Check for collision with root-level literal dotted keys
-                 (when-not (and root-literal-keys (contains? root-literal-keys absolute-path))
-                   {:collapsed-key collapsed-key
-                    :remainder tail
-                    :leaf-value leaf-value
-                    :segment-count (count segments)}))))))))))
+           (when-not (or sibling-collision? root-collision?)
+             {:collapsed-key collapsed-key
+              :remainder tail
+              :leaf-value leaf-value
+              :segment-count (count segments)})))))))

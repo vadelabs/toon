@@ -12,16 +12,47 @@
 ;; Path Expansion Helpers
 ;; ============================================================================
 
-(defn- json-object?
-  "Returns true if value is a map (JSON object)."
-  [value]
-  (map? value))
+(def ^:private dot-pattern
+  "Pre-compiled regex pattern for splitting dotted keys."
+  (re-pattern (str "\\" const/dot)))
 
 
 (defn- can-merge?
   "Returns true if two values can be deep merged (both are objects)."
   [a b]
-  (and (json-object? a) (json-object? b)))
+  (and (map? a) (map? b)))
+
+
+(defn- handle-conflict
+  "Handles merge conflicts in strict/non-strict mode.
+
+  Parameters:
+    - strict: Whether to throw on conflicts
+    - context: Map with conflict context (:key, :path, etc.)
+    - existing-value: The existing value at the path
+    - new-value: The new value being inserted
+    - overwrite-fn: Function to call for non-strict overwrite (returns new value)
+
+  Returns:
+    Result of overwrite-fn in non-strict mode
+
+  Throws:
+    ex-info if strict mode is enabled"
+  [strict context existing-value new-value overwrite-fn]
+  (if strict
+    (throw (ex-info
+             (str "Path expansion conflict"
+                  (when-let [k (:key context)]
+                    (str " at key \"" k "\""))
+                  (when-let [p (:path context)]
+                    (str " at path \"" p "\""))
+                  ": cannot merge "
+                  (type existing-value) " with " (type new-value))
+             (merge {:type :path-expansion-conflict
+                     :existing-type (type existing-value)
+                     :new-type (type new-value)}
+                    context)))
+    (overwrite-fn)))
 
 
 (defn- merge-objects
@@ -57,15 +88,11 @@
 
           ;; Conflict: incompatible types
           :else
-          (if strict
-            (throw (ex-info (str "Path expansion conflict at key \"" key "\": cannot merge "
-                                 (type target-value) " with " (type source-value))
-                            {:type :path-expansion-conflict
-                             :key key
-                             :target-type (type target-value)
-                             :source-type (type source-value)}))
-            ;; Non-strict: overwrite (LWW)
-            (assoc acc key source-value)))))
+          (handle-conflict strict
+                          {:key key}
+                          target-value
+                          source-value
+                          #(assoc acc key source-value)))))
     target
     source))
 
@@ -92,6 +119,7 @@
   Throws:
     ex-info if a conflict occurs in strict mode"
   [target segments value strict]
+  {:pre [(map? target) (seq segments)]}
   (let [last-idx (dec (count segments))
         last-seg (get segments last-idx)]
     ;; Build the nested path
@@ -106,15 +134,11 @@
           (assoc target last-seg (merge-objects existing value strict))
 
           :else
-          (if strict
-            (throw (ex-info (str "Path expansion conflict at key \"" last-seg "\": cannot merge "
-                                 (type existing) " with " (type value))
-                            {:type :path-expansion-conflict
-                             :key last-seg
-                             :existing-type (type existing)
-                             :value-type (type value)}))
-            ;; Non-strict: overwrite
-            (assoc target last-seg value))))
+          (handle-conflict strict
+                          {:key last-seg}
+                          existing
+                          value
+                          #(assoc target last-seg value))))
 
       ;; Multiple segments - walk the path
       (let [path-to-parent (subvec segments 0 last-idx)]
@@ -122,15 +146,13 @@
                    path-to-parent
                    (fn [parent]
                      (let [parent-obj (or parent {})]
-                       (if-not (json-object? parent-obj)
-                         (if strict
-                           (throw (ex-info (str "Path expansion conflict: expected object at path but found "
-                                                (type parent-obj))
-                                           {:type :path-expansion-conflict
-                                            :path (str/join "." path-to-parent)
-                                            :found-type (type parent-obj)}))
-                           ;; Non-strict: replace with new object
-                           {last-seg value})
+                       (if-not (map? parent-obj)
+                         (handle-conflict strict
+                                         {:path (str/join "." path-to-parent)
+                                          :found-type (type parent-obj)}
+                                         parent-obj
+                                         {}
+                                         (fn [] {last-seg value}))
                          ;; Parent is object - insert at last segment
                          (let [existing (get parent-obj last-seg)]
                            (cond
@@ -141,15 +163,11 @@
                              (assoc parent-obj last-seg (merge-objects existing value strict))
 
                              :else
-                             (if strict
-                               (throw (ex-info (str "Path expansion conflict at key \"" last-seg "\": cannot merge "
-                                                    (type existing) " with " (type value))
-                                               {:type :path-expansion-conflict
-                                                :key last-seg
-                                                :existing-type (type existing)
-                                                :value-type (type value)}))
-                               ;; Non-strict: overwrite
-                               (assoc parent-obj last-seg value))))))))))))
+                             (handle-conflict strict
+                                             {:key last-seg}
+                                             existing
+                                             value
+                                             #(assoc parent-obj last-seg value))))))))))))
 
 
 (defn expand
@@ -189,16 +207,16 @@
     (mapv #(expand % strict expand-paths) value)
 
     ;; Object - expand dotted keys
-    (json-object? value)
+    (map? value)
     (let [expanded-object
           (reduce-kv
             (fn [acc key key-value]
               ;; Check if key contains dots and should be expanded
               (if (and (str/includes? key const/dot)
-                       (let [segments (str/split key (re-pattern (str "\\" const/dot)))]
+                       (let [segments (str/split key dot-pattern)]
                          (every? utils/identifier-segment? segments)))
                 ;; Expandable - split and insert
-                (let [segments (str/split key (re-pattern (str "\\" const/dot)))
+                (let [segments (str/split key dot-pattern)
                       expanded-value (expand key-value strict expand-paths)]
                   (insert-path acc segments expanded-value strict))
 
@@ -209,15 +227,11 @@
                     (let [conflicting-value (get acc key)]
                       (if (can-merge? conflicting-value expanded-value)
                         (assoc acc key (merge-objects conflicting-value expanded-value strict))
-                        (if strict
-                          (throw (ex-info (str "Path expansion conflict at key \"" key "\": cannot merge "
-                                               (type conflicting-value) " with " (type expanded-value))
-                                          {:type :path-expansion-conflict
-                                           :key key
-                                           :conflicting-type (type conflicting-value)
-                                           :expanded-type (type expanded-value)}))
-                          ;; Non-strict: overwrite (LWW)
-                          (assoc acc key expanded-value))))
+                        (handle-conflict strict
+                                        {:key key}
+                                        conflicting-value
+                                        expanded-value
+                                        #(assoc acc key expanded-value))))
                     ;; No conflict - insert directly
                     (assoc acc key expanded-value)))))
             {}
