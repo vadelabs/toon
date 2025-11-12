@@ -14,6 +14,43 @@
 
 
 ;; ============================================================================
+;; Regex Pattern Constants
+;; ============================================================================
+
+(def ^:private numeric-pattern
+  "Pattern for standard numeric literals: 42, -3.14, 1e-6, 1.23e+10
+  Matches optional sign, digits, optional decimal, optional exponent"
+  #"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+(def ^:private leading-zero-pattern
+  "Pattern for numbers with leading zeros: 05, 007, 0123
+  These need quoting to preserve the leading zeros"
+  #"^0\d+$")
+
+(def ^:private structural-chars-pattern
+  "Pattern for TOON structural characters: [ ] { } -
+  Values containing these need quoting for clarity"
+  #"[\[\]{}\-]")
+
+(def ^:private control-chars-pattern
+  "Pattern for control characters: newline, carriage return, tab
+  Values containing these need quoting and escaping"
+  #"[\n\r\t]")
+
+(def ^:private identifier-segment-pattern
+  "Pattern for safe identifier segments (no dots or slashes).
+  Must start with letter or underscore, followed by word characters.
+  Used for key collapsing and path expansion safety checks."
+  #"^[A-Za-z_]\w*$")
+
+(def ^:private valid-unquoted-key-pattern
+  "Pattern for valid unquoted keys in TOON format.
+  Must start with letter or underscore, can contain word chars, dots, slashes.
+  Slashes support Clojure namespaced keywords (e.g., 'user/id')"
+  #"^[A-Za-z_][\w./]*$")
+
+
+;; ============================================================================
 ;; String Search Utilities
 ;; ============================================================================
 
@@ -202,17 +239,14 @@
   Matches standard numeric patterns (42, -3.14, 1e-6) and
   leading zero patterns (05, 007)."
   [value]
-  (or
-    ;; Standard numeric pattern: 42, -3.14, 1e-6
-    (boolean (re-matches #"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$" value))
-    ;; Leading zeros pattern: 05, 007
-    (boolean (re-matches #"^0\d+$" value))))
+  (boolean (or (re-matches numeric-pattern value)
+               (re-matches leading-zero-pattern value))))
 
 
 (defn has-structural-chars?
   "Returns true if value contains structural characters: [ ] { } -"
   [value]
-  (boolean (re-find #"[\[\]{}\-]" value)))
+  (boolean (re-find structural-chars-pattern value)))
 
 
 ;; ============================================================================
@@ -269,7 +303,7 @@
      (str/includes? value "\\")
 
      ;; Control characters (newlines, tabs, carriage returns)
-     (re-find #"[\n\r\t]" value))))
+     (re-find control-chars-pattern value))))
 
 
 (defn wrap
@@ -322,6 +356,32 @@
 ;; Key Quoting Logic
 ;; ============================================================================
 
+(defn identifier-segment?
+  "Returns true if a key segment is a valid identifier for safe collapsing/expansion.
+
+  Identifier segments are more restrictive than unquoted keys:
+  - Must start with a letter (A-Z, a-z) or underscore (_)
+  - Followed only by letters, digits, or underscores (no dots or slashes)
+  - Used for safe key collapsing and path expansion
+
+  Parameters:
+    - segment: String segment to check
+
+  Returns:
+    Boolean indicating if segment is a valid identifier.
+
+  Examples:
+    (identifier-segment? \"name\")        ;=> true
+    (identifier-segment? \"user_id\")     ;=> true
+    (identifier-segment? \"user123\")     ;=> true
+    (identifier-segment? \"user.name\")   ;=> false (contains dot)
+    (identifier-segment? \"user/id\")     ;=> false (contains slash)
+    (identifier-segment? \"user name\")   ;=> false (contains space)
+    (identifier-segment? \"123\")         ;=> false (starts with digit)"
+  [segment]
+  (some? (re-matches identifier-segment-pattern segment)))
+
+
 (defn valid-unquoted-key?
   "Returns true if a key can be used without quotes.
 
@@ -346,7 +406,7 @@
     (valid-unquoted-key? \"123\")         ;=> false (starts with digit)
     (valid-unquoted-key? \"key:value\")   ;=> false (colon)"
   [key]
-  (boolean (re-matches #"^[A-Za-z_][\w./]*$" key)))
+  (some? (re-matches valid-unquoted-key-pattern key)))
 
 
 (defn maybe-quote-key

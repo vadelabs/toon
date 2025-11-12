@@ -155,3 +155,86 @@
 
     (testing "no delimiter is key-value"
       (is (= :key-value (#'arrays/row-or-key-value? "key:value" ","))))))
+
+
+;; ============================================================================
+;; Additional Coverage Tests
+;; ============================================================================
+
+(deftest tabular-array-length-mismatch-strict-test
+  (testing "Throws on length mismatch in strict mode for tabular arrays"
+    (let [input "[2]{id,name}:\n  1,Alice\n  2,Bob\n  3,Charlie"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))]
+      (is (thrown-with-msg?
+            #?(:clj Exception :cljs js/Error)
+            #"length mismatch"
+            (arrays/tabular-array header-info cursor-after-header 1 true))))))
+
+
+(deftest list-array-length-mismatch-strict-test
+  (testing "Throws on length mismatch in strict mode for list arrays"
+    (let [input "[2]:\n  - item1\n  - item2\n  - item3"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))]
+      (is (thrown-with-msg?
+            #?(:clj Exception :cljs js/Error)
+            #"length mismatch"
+            (arrays/list-array header-info cursor-after-header 1 true items/list-item))))))
+
+
+(deftest inline-primitive-array-non-strict-length-test
+  (testing "Allows length mismatch in non-strict mode"
+    (let [header-info {:length 2 :delimiter "," :inline-values "a,b,c"}
+          result (arrays/inline-primitive-array header-info false)]
+      (is (= ["a" "b" "c"] result)))))
+
+
+(deftest tabular-array-non-strict-length-test
+  (testing "Allows length mismatch in non-strict mode for tabular arrays"
+    (let [input "[2]{id,name}:\n  1,Alice\n  2,Bob\n  3,Charlie"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))
+          [result _] (arrays/tabular-array header-info cursor-after-header 1 false)]
+      (is (= 3 (count result))))))
+
+
+
+
+(deftest list-array-non-strict-length-test
+  (testing "Allows length mismatch in non-strict mode for list arrays"
+    (let [input "[2]:\n  - item1\n  - item2\n  - item3"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))
+          [result _] (arrays/list-array header-info cursor-after-header 1 false items/list-item)]
+      (is (= 3 (count result))))))
+
+
+(deftest tabular-array-empty-test
+  (testing "Decode empty tabular array"
+    (let [input "[0]{id,name}:"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))
+          [result _] (arrays/tabular-array header-info cursor-after-header 1 true)]
+      (is (= [] result)))))
+
+
+(deftest list-array-empty-test
+  (testing "Decode empty list array"
+    (let [input "[0]:"
+          scan-result (scanner/to-parsed-lines input)
+          cursor (scanner/cursor-from-scan-result scan-result)
+          [header-line cursor-after-header] (scanner/next-cursor cursor)
+          header-info (parser/array-header-line (:content header-line))
+          [result _] (arrays/list-array header-info cursor-after-header 1 true items/list-item)]
+      (is (= [] result)))))

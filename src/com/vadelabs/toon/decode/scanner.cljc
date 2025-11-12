@@ -36,14 +36,15 @@
 
   Returns number of spaces before first non-space character."
   [s]
-  (let [match (re-find #"^( *)" s)]
-    (count (second match))))
+  (-> (re-find #"^( *)" s)
+      second
+      count))
 
 
 (defn- blank-line?
   "Checks if a line is blank (only whitespace)."
   [s]
-  (or (empty? s)
+  (or (str/blank? s)
       (every? #{\space \tab} s)))
 
 
@@ -197,7 +198,7 @@
 
 (defn has-more-at-depth?
   [^LineCursor cursor target-depth]
-  (boolean (peek-at-depth cursor target-depth)))
+  (some? (peek-at-depth cursor target-depth)))
 
 
 (defn get-blank-lines-in-range

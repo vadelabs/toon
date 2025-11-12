@@ -269,18 +269,20 @@
             open-brace (str/index-of after-bracket "{")
             close-brace (str/index-of after-bracket "}")
             fields (when (and open-brace close-brace)
-                     (let [fields-str (subs after-bracket (inc open-brace) close-brace)]
-                       (vec (map str/trim (str/split fields-str #",")))))
+                     (->> (subs after-bracket (inc open-brace) close-brace)
+                          (#(str/split % #","))
+                          (mapv str/trim)))
             ;; Extract content after fields (or after ])
             after-fields (if fields
                            (subs after-bracket (inc close-brace))
                            after-bracket)
             ;; Check for colon and inline values
             colon-pos (str/index-of after-fields ":")
-            inline-values (when colon-pos
-                            (let [after-colon (str/trim (subs after-fields (inc colon-pos)))]
-                              (when-not (empty? after-colon)
-                                after-colon)))]
+            inline-values (some-> colon-pos
+                                  inc
+                                  (#(subs after-fields %))
+                                  str/trim
+                                  not-empty)]
         (cond-> bracket-info
           key-part (assoc :key key-part)
           fields (assoc :fields fields)

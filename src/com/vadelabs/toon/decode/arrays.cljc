@@ -69,6 +69,49 @@
     (mapv #(parser/primitive-token % strict) tokens)))
 
 
+(defn- analyze-line-positions
+  "Analyzes positions of colon and delimiter in a line.
+
+  Parameters:
+    - content: Line content string
+    - delimiter: Delimiter character
+
+  Returns:
+    Map with :colon-pos and :delim-pos (nil if not found)"
+  [content delimiter]
+  (let [delim-char (first delimiter)]
+    {:colon-pos (str-utils/unquoted-char content \:)
+     :delim-pos (str-utils/unquoted-char content delim-char)}))
+
+
+(defn- delimiter-before-colon?
+  "Checks if delimiter appears before colon in position analysis.
+
+  Parameters:
+    - positions: Map with :colon-pos and :delim-pos
+
+  Returns:
+    Boolean (true if both present and delimiter comes first)"
+  [{:keys [colon-pos delim-pos]}]
+  (and colon-pos delim-pos (< delim-pos colon-pos)))
+
+
+(defn- peek-next-line-has-delimiter-first?
+  "Checks if next line at same depth has delimiter before colon.
+
+  Parameters:
+    - cursor: LineCursor for look-ahead
+    - depth: Depth to peek at
+    - delimiter: Delimiter character
+
+  Returns:
+    Boolean (false if no next line)"
+  [cursor depth delimiter]
+  (if-let [next-line (scanner/peek-at-depth cursor depth)]
+    (delimiter-before-colon? (analyze-line-positions (:content next-line) delimiter))
+    false))
+
+
 (defn- row-or-key-value?
   "Determines if a line is a data row or key-value line.
 
@@ -93,9 +136,7 @@
   ([content delimiter]
    (row-or-key-value? content delimiter nil nil))
   ([content delimiter cursor depth]
-   (let [colon-pos (str-utils/unquoted-char content \:)
-         delim-char (first delimiter)
-         delim-pos (str-utils/unquoted-char content delim-char)]
+   (let [{:keys [colon-pos delim-pos] :as positions} (analyze-line-positions content delimiter)]
      (cond
        ;; No colon: must be row
        (nil? colon-pos)
@@ -106,23 +147,14 @@
        :key-value
 
        ;; Delimiter before colon: data row
-       (< delim-pos colon-pos)
+       (delimiter-before-colon? positions)
        :row
 
        ;; Colon before delimiter: ambiguous case, use look-ahead if available
-       (and cursor depth)
-       (let [next-line (scanner/peek-at-depth cursor depth)]
-         (if next-line
-           (let [next-colon-pos (str-utils/unquoted-char (:content next-line) \:)
-                 next-delim-pos (str-utils/unquoted-char (:content next-line) delim-char)]
-             ;; If next line also has delimiter before colon, current line is likely a row
-             (if (and next-delim-pos next-colon-pos (< next-delim-pos next-colon-pos))
-               :row
-               :key-value))
-           ;; No next line, default to key-value
-           :key-value))
+       (and cursor depth (peek-next-line-has-delimiter-first? cursor depth delimiter))
+       :row
 
-       ;; No look-ahead context: default to key-value
+       ;; Default to key-value
        :else
        :key-value))))
 

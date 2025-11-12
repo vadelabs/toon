@@ -12,6 +12,7 @@
 (def space " ")
 (def pipe "|")
 (def tab "\t")
+(def dot ".")
 
 
 ;; Brackets and braces

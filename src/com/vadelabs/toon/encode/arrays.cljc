@@ -58,9 +58,31 @@
   (when (seq objects)
     (let [first-keys (keys (first objects))
           all-key-sets (map (comp set keys) objects)]
-      (vec (filter (fn [k]
-                     (every? #(contains? % k) all-key-sets))
-                   first-keys)))))
+      (filterv (fn [k]
+                 (every? #(contains? % k) all-key-sets))
+               first-keys))))
+
+
+(defn- encode-delimited-values
+  "Encodes a collection of values as a delimited string.
+
+  Parameters:
+    - values: Collection of primitive values to encode
+    - delimiter: Delimiter character (\",\", \"|\", or \"\\t\")
+
+  Returns:
+    String with encoded values joined by delimiter
+
+  Examples:
+    (encode-delimited-values [1 2 3] \",\")
+    ;=> \"1,2,3\"
+
+    (encode-delimited-values [\"a\" \"b\" \"c\"] \"|\")
+    ;=> \"a|b|c\""
+  [values delimiter]
+  (->> values
+       (map #(prim/encode % delimiter))
+       (str/join delimiter)))
 
 
 ;; ============================================================================
@@ -87,8 +109,7 @@
     [1,2,3] at depth = 0 → \"[3]: 1,2,3\"
     [\"a\",\"b\",\"c\"] → \"a,b,c\""
   [values delimiter depth writer]
-  (let [encoded-values (map #(prim/encode % delimiter) values)
-        values-str (str/join delimiter encoded-values)
+  (let [values-str (encode-delimited-values values delimiter)
         ;; For root-level arrays (depth 0), include array header
         line (if (zero? depth)
                (str (array-header (count values) delimiter) const/colon const/space values-str)
@@ -141,8 +162,7 @@
     Updated LineWriter."
   [obj ks delimiter depth writer]
   (let [values (map #(get obj %) ks)
-        encoded-values (map #(prim/encode % delimiter) values)
-        line (str/join delimiter encoded-values)]
+        line (encode-delimited-values values delimiter)]
     (writer/push writer depth line)))
 
 
@@ -245,8 +265,7 @@
               ;; Array of primitives: - [N]: val1,val2,val3
               (norm/array-of-primitives? v)
               (let [inline-header (str const/list-item-prefix (array-header (count v) delimiter) const/colon const/space)
-                    encoded-values (map #(prim/encode % delimiter) v)
-                    values-str (str/join delimiter encoded-values)
+                    values-str (encode-delimited-values v delimiter)
                     line (str inline-header values-str)]
                 (writer/push w depth line))
 
@@ -305,8 +324,7 @@
   [arrays delimiter depth writer]
   (reduce (fn [w arr]
             (let [inline-header (str const/list-item-prefix (array-header (count arr) delimiter) const/colon const/space)
-                  encoded-values (map #(prim/encode % delimiter) arr)
-                  values-str (str/join delimiter encoded-values)
+                  values-str (encode-delimited-values arr delimiter)
                   line (str inline-header values-str)]
               (writer/push w depth line)))
           writer
