@@ -3,9 +3,9 @@
     [com.vadelabs.toon.decode.decoders :as decoders]
     [com.vadelabs.toon.decode.keys :as keys]
     [com.vadelabs.toon.decode.scanner :as scanner]
-    [com.vadelabs.toon.encode.encoders]
-    [com.vadelabs.toon.encode.normalize]
-    [com.vadelabs.toon.encode.writer]))
+    [com.vadelabs.toon.encode.encoders :as encoders]
+    [com.vadelabs.toon.encode.normalize :as norm]
+    [com.vadelabs.toon.encode.writer :as writer]))
 
 
 ;; ============================================================================
@@ -43,14 +43,10 @@
                      :key-collapsing :off
                      :flatten-depth ##Inf}
                     options)]
-    ;; Normalize input to JSON-compatible values
-    (let [normalized (com.vadelabs.toon.encode.normalize/normalize-value input)
-          ;; Create writer with configured indent
-          writer (com.vadelabs.toon.encode.writer/create (:indent opts))
-          ;; Encode the normalized value
-          result-writer (com.vadelabs.toon.encode.encoders/value normalized opts 0 writer)]
-      ;; Convert to string
-      (com.vadelabs.toon.encode.writer/to-string result-writer))))
+    (-> input
+        norm/normalize-value
+        (encoders/value opts 0 (writer/create (:indent opts)))
+        writer/to-string)))
 
 
 (defn decode
@@ -85,10 +81,8 @@
                      :strict true
                      :expand-paths :off}
                     options)]
-    ;; Parse input to lines with depth tracking
-    (let [scan-result (scanner/to-parsed-lines input (:indent opts) (:strict opts))
-          cursor (scanner/cursor-from-scan-result scan-result)
-          ;; Decode from root
-          decoded (decoders/value-from-lines cursor (:indent opts) (:strict opts))]
-      ;; Apply path expansion if enabled
-      (keys/expand decoded (:strict opts) (:expand-paths opts)))))
+    (-> input
+        (scanner/to-parsed-lines (:indent opts) (:strict opts))
+        scanner/cursor-from-scan-result
+        (decoders/value-from-lines (:indent opts) (:strict opts))
+        (keys/expand (:strict opts) (:expand-paths opts)))))
