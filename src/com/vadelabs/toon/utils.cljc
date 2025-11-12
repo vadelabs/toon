@@ -14,6 +14,43 @@
 
 
 ;; ============================================================================
+;; Regex Pattern Constants
+;; ============================================================================
+
+(def ^:private numeric-pattern
+  "Pattern for standard numeric literals: 42, -3.14, 1e-6, 1.23e+10
+  Matches optional sign, digits, optional decimal, optional exponent"
+  #"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+(def ^:private leading-zero-pattern
+  "Pattern for numbers with leading zeros: 05, 007, 0123
+  These need quoting to preserve the leading zeros"
+  #"^0\d+$")
+
+(def ^:private structural-chars-pattern
+  "Pattern for TOON structural characters: [ ] { } -
+  Values containing these need quoting for clarity"
+  #"[\[\]{}\-]")
+
+(def ^:private control-chars-pattern
+  "Pattern for control characters: newline, carriage return, tab
+  Values containing these need quoting and escaping"
+  #"[\n\r\t]")
+
+(def ^:private identifier-segment-pattern
+  "Pattern for safe identifier segments (no dots or slashes).
+  Must start with letter or underscore, followed by word characters.
+  Used for key collapsing and path expansion safety checks."
+  #"^[A-Za-z_]\w*$")
+
+(def ^:private valid-unquoted-key-pattern
+  "Pattern for valid unquoted keys in TOON format.
+  Must start with letter or underscore, can contain word chars, dots, slashes.
+  Slashes support Clojure namespaced keywords (e.g., 'user/id')"
+  #"^[A-Za-z_][\w./]*$")
+
+
+;; ============================================================================
 ;; String Search Utilities
 ;; ============================================================================
 
@@ -204,15 +241,15 @@
   [value]
   (or
     ;; Standard numeric pattern: 42, -3.14, 1e-6
-    (boolean (re-matches #"^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$" value))
+    (boolean (re-matches numeric-pattern value))
     ;; Leading zeros pattern: 05, 007
-    (boolean (re-matches #"^0\d+$" value))))
+    (boolean (re-matches leading-zero-pattern value))))
 
 
 (defn has-structural-chars?
   "Returns true if value contains structural characters: [ ] { } -"
   [value]
-  (boolean (re-find #"[\[\]{}\-]" value)))
+  (boolean (re-find structural-chars-pattern value)))
 
 
 ;; ============================================================================
@@ -269,7 +306,7 @@
      (str/includes? value "\\")
 
      ;; Control characters (newlines, tabs, carriage returns)
-     (re-find #"[\n\r\t]" value))))
+     (re-find control-chars-pattern value))))
 
 
 (defn wrap
@@ -345,7 +382,7 @@
     (identifier-segment? \"user name\")   ;=> false (contains space)
     (identifier-segment? \"123\")         ;=> false (starts with digit)"
   [segment]
-  (boolean (re-matches #"^[A-Za-z_]\w*$" segment)))
+  (boolean (re-matches identifier-segment-pattern segment)))
 
 
 (defn valid-unquoted-key?
@@ -372,7 +409,7 @@
     (valid-unquoted-key? \"123\")         ;=> false (starts with digit)
     (valid-unquoted-key? \"key:value\")   ;=> false (colon)"
   [key]
-  (boolean (re-matches #"^[A-Za-z_][\w./]*$" key)))
+  (boolean (re-matches valid-unquoted-key-pattern key)))
 
 
 (defn maybe-quote-key
