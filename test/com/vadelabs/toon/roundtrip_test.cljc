@@ -10,6 +10,27 @@
 
 
 ;; ============================================================================
+;; Test Iteration Constants
+;; ============================================================================
+
+(def ^:private minimal-check-iterations
+  "Minimal iteration count for very simple property tests (e.g., booleans)"
+  10)
+
+(def ^:private quick-check-iterations
+  "Standard iteration count for basic property tests (primitives, simple structures)"
+  20)
+
+(def ^:private standard-check-iterations
+  "Moderate iteration count for complex scenarios (large structures, combinations)"
+  30)
+
+(def ^:private thorough-check-iterations
+  "Higher iteration count for edge cases, special characters, and delimiter variations"
+  50)
+
+
+;; ============================================================================
 ;; Helper Functions
 ;; ============================================================================
 
@@ -87,12 +108,12 @@
 ;; Primitive Roundtrip Tests
 ;; ============================================================================
 
-(defspec primitive-string-roundtrip 20
+(defspec primitive-string-roundtrip quick-check-iterations
   (prop/for-all [s gen/string-alphanumeric]
                 (= s (roundtrip s))))
 
 
-(defspec primitive-boolean-roundtrip 10
+(defspec primitive-boolean-roundtrip minimal-check-iterations
   (prop/for-all [b gen/boolean]
                 (= b (roundtrip b))))
 
@@ -102,7 +123,7 @@
     (is (= nil (roundtrip nil)))))
 
 
-(defspec primitive-number-roundtrip 20
+(defspec primitive-number-roundtrip quick-check-iterations
   (prop/for-all [n gen/int]
                 (= (double n) (roundtrip n))))
 
@@ -111,19 +132,19 @@
 ;; Array Roundtrip Tests
 ;; ============================================================================
 
-(defspec array-string-roundtrip 20
+(defspec array-string-roundtrip quick-check-iterations
   (prop/for-all [arr (gen/vector gen-non-empty-string 1 10)]
                 (= arr (roundtrip arr))))
 
 
-(defspec array-number-roundtrip 20
+(defspec array-number-roundtrip quick-check-iterations
   (prop/for-all [arr (gen/vector gen/int 1 10)]
                 (let [expected (mapv double arr)
                       actual (roundtrip arr)]
                   (= expected actual))))
 
 
-(defspec array-boolean-roundtrip 10
+(defspec array-boolean-roundtrip minimal-check-iterations
   (prop/for-all [arr (gen/vector gen/boolean 1 5)]
                 (= arr (roundtrip arr))))
 
@@ -137,13 +158,13 @@
 ;; Object Roundtrip Tests
 ;; ============================================================================
 
-(defspec object-simple-roundtrip 20
+(defspec object-simple-roundtrip quick-check-iterations
   (prop/for-all [obj (gen/map gen-non-empty-string gen-non-empty-string
                               {:min-elements 1 :max-elements 5})]
                 (= obj (roundtrip obj))))
 
 
-(defspec object-mixed-values-roundtrip 20
+(defspec object-mixed-values-roundtrip quick-check-iterations
   (prop/for-all [name gen-non-empty-string
                  age gen/int
                  active gen/boolean]
@@ -157,7 +178,7 @@
 ;; Nested Structure Roundtrip Tests
 ;; ============================================================================
 
-(defspec nested-object-roundtrip 20
+(defspec nested-object-roundtrip quick-check-iterations
   (prop/for-all [name gen-non-empty-string
                  age gen/int]
                 (let [obj {"user" {"name" name "age" age}}
@@ -166,7 +187,7 @@
                   (= expected actual))))
 
 
-(defspec object-with-array-roundtrip 20
+(defspec object-with-array-roundtrip quick-check-iterations
   (prop/for-all [name gen-non-empty-string
                  tags gen-string-vector]
                 (let [obj {"name" name "tags" tags}
@@ -175,7 +196,7 @@
                   (= expected actual))))
 
 
-(defspec array-of-objects-roundtrip 20
+(defspec array-of-objects-roundtrip quick-check-iterations
   (prop/for-all [objects (gen/vector
                            (gen/fmap (fn [[id name]] {"id" id "name" name})
                                      (gen/tuple gen/int gen-non-empty-string))
@@ -225,7 +246,7 @@
                gen-simple-map]))
 
 
-(defspec complex-json-roundtrip 30
+(defspec complex-json-roundtrip standard-check-iterations
   (prop/for-all [value gen-complex-value]
                 (let [expected (normalize-for-comparison value)
                       actual (roundtrip value)]
@@ -281,7 +302,7 @@
 ;; Deep Nesting Tests
 ;; ============================================================================
 
-(defspec deeply-nested-objects-roundtrip 50
+(defspec deeply-nested-objects-roundtrip thorough-check-iterations
   (prop/for-all [name gen-non-empty-string
                  age gen/int
                  city gen-non-empty-string]
@@ -291,7 +312,7 @@
                   (= expected actual))))
 
 
-(defspec nested-arrays-roundtrip 50
+(defspec nested-arrays-roundtrip thorough-check-iterations
   (prop/for-all [arr gen-nested-array]
                 (let [expected (mapv #(mapv double %) arr)
                       actual (roundtrip arr)]
@@ -302,17 +323,17 @@
 ;; Special String Cases
 ;; ============================================================================
 
-(defspec special-strings-roundtrip 50
+(defspec special-strings-roundtrip thorough-check-iterations
   (prop/for-all [s gen-special-string]
                 (= s (roundtrip s))))
 
 
-(defspec unicode-strings-roundtrip 50
+(defspec unicode-strings-roundtrip thorough-check-iterations
   (prop/for-all [s gen-unicode-string]
                 (= s (roundtrip s))))
 
 
-(defspec strings-with-whitespace-roundtrip 50
+(defspec strings-with-whitespace-roundtrip thorough-check-iterations
   (prop/for-all [ws1 (gen/elements [" " "  " "\t"])
                  content gen-non-empty-string
                  ws2 (gen/elements [" " "  " "\t"])]
@@ -324,7 +345,7 @@
 ;; Different Delimiter Options
 ;; ============================================================================
 
-(defspec roundtrip-with-tab-delimiter 50
+(defspec roundtrip-with-tab-delimiter thorough-check-iterations
   (prop/for-all [obj gen-simple-map]
                 (let [encoded (toon/encode obj {:delimiter "\t"})
                       decoded (toon/decode encoded)
@@ -332,7 +353,7 @@
                   (= expected decoded))))
 
 
-(defspec roundtrip-with-pipe-delimiter 50
+(defspec roundtrip-with-pipe-delimiter thorough-check-iterations
   (prop/for-all [obj gen-simple-map]
                 (let [encoded (toon/encode obj {:delimiter "|"})
                       decoded (toon/decode encoded)
@@ -350,7 +371,7 @@
 ;; Large Structure Tests
 ;; ============================================================================
 
-(defspec large-object-roundtrip 30
+(defspec large-object-roundtrip standard-check-iterations
   (prop/for-all [obj (gen/map gen-safe-key gen-json-primitive
                               {:min-elements 10 :max-elements 50})]
                 (let [expected (normalize-for-comparison obj)
@@ -358,14 +379,14 @@
                   (= expected actual))))
 
 
-(defspec large-array-roundtrip 30
+(defspec large-array-roundtrip standard-check-iterations
   (prop/for-all [arr (gen/vector gen/int 50 200)]
                 (let [expected (mapv double arr)
                       actual (roundtrip arr)]
                   (= expected actual))))
 
 
-(defspec large-array-of-objects-roundtrip 30
+(defspec large-array-of-objects-roundtrip standard-check-iterations
   (prop/for-all [objects (gen/vector
                            (gen/fmap (fn [[id name]]
                                        {"id" id "name" name})
@@ -380,7 +401,7 @@
 ;; Edge Cases for Keys
 ;; ============================================================================
 
-(defspec keys-with-special-chars-roundtrip 50
+(defspec keys-with-special-chars-roundtrip thorough-check-iterations
   (prop/for-all [value gen-non-empty-string]
                 (let [obj {"user name" value
                            "key:value" value
@@ -391,7 +412,7 @@
                   (= expected actual))))
 
 
-(defspec namespaced-keys-roundtrip 50
+(defspec namespaced-keys-roundtrip thorough-check-iterations
   (prop/for-all [value gen-non-empty-string]
                 (let [obj {"user/name" value
                            "app.config/port" value
