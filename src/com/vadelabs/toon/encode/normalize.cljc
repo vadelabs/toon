@@ -38,11 +38,24 @@
 
   Parameters:
     - value: Any Clojure value
+    - depth: (optional) Current nesting depth (default: 0)
+    - max-depth: (optional) Maximum nesting depth (default: 1000)
 
   Returns:
-    JSON-compatible value (nil, boolean, number, string, vector, or map)"
-  [value]
-  (cond
+    JSON-compatible value (nil, boolean, number, string, vector, or map)
+
+  Throws:
+    ex-info if max-depth is exceeded to prevent stack overflow"
+  ([value]
+   (normalize-value value 0 1000))
+  ([value depth max-depth]
+   (when (> depth max-depth)
+     (throw (ex-info "Maximum nesting depth exceeded during normalization"
+                     {:type :max-depth-exceeded
+                      :depth depth
+                      :max-depth max-depth
+                      :suggestion "Reduce nesting depth or increase max-depth parameter"})))
+   (cond
     ;; nil
     (nil? value)
     nil
@@ -121,7 +134,7 @@
     ;; Sets → sorted vectors
     (set? value)
     (->> value
-         (map normalize-value)
+         (map #(normalize-value % (inc depth) max-depth))
          sort
          vec)
 
@@ -129,20 +142,21 @@
     (map? value)
     (into {}
           (map (fn [[k v]]
-                 [(normalize-value k) (normalize-value v)]))
+                 [(normalize-value k (inc depth) max-depth)
+                  (normalize-value v (inc depth) max-depth)]))
           value)
 
     ;; Vectors → vectors (recursively normalized)
     (vector? value)
-    (mapv normalize-value value)
+    (mapv #(normalize-value % (inc depth) max-depth) value)
 
     ;; Lists/Sequences → vectors
     (seq? value)
-    (mapv normalize-value value)
+    (mapv #(normalize-value % (inc depth) max-depth) value)
 
     ;; Functions, vars, undefined → nil
     :else
-    nil))
+    nil)))
 
 
 ;; ============================================================================
