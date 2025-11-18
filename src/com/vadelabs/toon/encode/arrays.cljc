@@ -57,7 +57,7 @@
   [objects]
   (when (seq objects)
     (let [first-keys (keys (first objects))
-          all-key-sets (map (comp set keys) objects)]
+          all-key-sets (into [] (map (comp set keys)) objects)]
       (filterv (fn [k]
                  (every? #(contains? % k) all-key-sets))
                first-keys))))
@@ -80,9 +80,8 @@
     (encode-delimited-values [\"a\" \"b\" \"c\"] \"|\")
     ;=> \"a|b|c\""
   [values delimiter]
-  (->> values
-       (map #(prim/encode % delimiter))
-       (str/join delimiter)))
+  (str/join delimiter
+            (into [] (map #(prim/encode % delimiter)) values)))
 
 
 ;; ============================================================================
@@ -138,7 +137,7 @@
     Updated LineWriter."
   [cnt ks delimiter depth writer]
   (let [header-suffix (array-header cnt delimiter)
-        quoted-keys (map quote/maybe-quote-key ks)
+        quoted-keys (into [] (map quote/maybe-quote-key) ks)
         keys-part (str const/open-brace
                        (str/join delimiter quoted-keys)
                        const/close-brace
@@ -161,7 +160,7 @@
   Returns:
     Updated LineWriter."
   [obj ks delimiter depth writer]
-  (let [values (map #(get obj %) ks)
+  (let [values (into [] (map #(get obj %)) ks)
         line (encode-delimited-values values delimiter)]
     (writer/push writer depth line)))
 
