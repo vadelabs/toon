@@ -140,42 +140,44 @@
    (delimited-values input ","))
   ([input delimiter]
    (loop [pos 0
-          current ""
+          current #?(:clj (StringBuilder.)
+                     :cljs (goog.string/StringBuffer.))
           in-quotes false
           values []]
      (if (>= pos (count input))
        ;; End of string
-       (if (empty? current)
+       (if (zero? (.length current))
          values
-         (conj values (str/trim current)))
+         (conj values (str/trim (.toString current))))
        (let [ch (nth input pos)]
          (cond
            ;; Handle backslash escapes in quotes
            (and (= ch \\) in-quotes (< (inc pos) (count input)))
            (let [next-ch (nth input (inc pos))]
              (recur (+ pos 2)
-                    (str current ch next-ch)
+                    (doto current (.append ch) (.append next-ch))
                     in-quotes
                     values))
 
            ;; Toggle quote state
            (= ch \")
            (recur (inc pos)
-                  (str current ch)
+                  (doto current (.append ch))
                   (not in-quotes)
                   values)
 
            ;; Delimiter outside quotes: split here
            (and (= (str ch) delimiter) (not in-quotes))
            (recur (inc pos)
-                  ""
+                  #?(:clj (StringBuilder.)
+                     :cljs (goog.string/StringBuffer.))
                   in-quotes
-                  (conj values (str/trim current)))
+                  (conj values (str/trim (.toString current))))
 
            ;; Regular character
            :else
            (recur (inc pos)
-                  (str current ch)
+                  (doto current (.append ch))
                   in-quotes
                   values)))))))
 
@@ -213,12 +215,29 @@
                        (subs bracket-content 0 (dec (count bracket-content)))
                        bracket-content)
         length (number numeric-part)]
+    ;; Validate empty bracket content
+    (when (str/blank? numeric-part)
+      (throw (ex-info "Array length cannot be empty in bracket segment"
+                      {:type :empty-bracket-segment
+                       :input bracket-content
+                       :suggestion "Specify array length: [3] or [0] for empty arrays"
+                       :examples ["[3]" "[0]" "[10|]"]})))
+    ;; Validate that length is a valid number
     (when-not length
       (throw (ex-info "Invalid array length in bracket segment: must be a number"
                       {:type :invalid-bracket-segment
                        :input bracket-content
+                       :parsed-value numeric-part
                        :suggestion "Use a numeric length: [3] or [10|] or [2\\t]"
                        :examples ["[3]" "[10|]" "[2\\t]"]})))
+    ;; Validate non-negative length
+    (when (neg? length)
+      (throw (ex-info "Array length must be non-negative"
+                      {:type :negative-array-length
+                       :input bracket-content
+                       :parsed-value length
+                       :suggestion "Use a non-negative integer: [0], [3], [100]"
+                       :examples ["[0]" "[3]" "[100]"]})))
     {:length (int length)
      :delimiter delimiter}))
 
