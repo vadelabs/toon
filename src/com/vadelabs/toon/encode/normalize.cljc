@@ -133,10 +133,7 @@
 
     ;; Sets → sorted vectors
     (set? value)
-    (->> value
-         (map #(normalize-value % (inc depth) max-depth))
-         sort
-         vec)
+    (vec (sort (into [] (map #(normalize-value % (inc depth) max-depth)) value)))
 
     ;; Maps → maps with string keys
     (map? value)
