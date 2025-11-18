@@ -170,6 +170,70 @@
                                              #(assoc parent-obj last-seg value))))))))))))
 
 
+;; Forward declaration for mutual recursion
+(declare expand)
+
+
+(defn- expandable-key?
+  "Checks if a key can be expanded into a path.
+
+  Returns true if key contains dots and all segments are valid identifiers."
+  [key]
+  (and (str/includes? key const/dot)
+       (let [segments (str/split key dot-pattern)]
+         (every? utils/identifier-segment? segments))))
+
+
+(defn- expanded-key
+  "Expands a single expandable key into the accumulator.
+
+  Splits the key on dots and inserts the expanded value at that path.
+
+  Returns updated accumulator."
+  [acc key value strict]
+  (let [segments (str/split key dot-pattern)]
+    (insert-path acc segments value strict)))
+
+
+(defn- literal-key
+  "Handles a non-expandable literal key.
+
+  Checks for conflicts and merges if possible, otherwise inserts directly.
+
+  Returns updated accumulator."
+  [acc key value strict]
+  (if (contains? acc key)
+    ;; Key already exists - check if we can merge
+    (let [existing (get acc key)]
+      (if (can-merge? existing value)
+        (assoc acc key (merge-objects existing value strict))
+        (handle-conflict strict
+                        {:key key}
+                        existing
+                        value
+                        #(assoc acc key value))))
+    ;; No conflict - insert directly
+    (assoc acc key value)))
+
+
+(defn- expanded-object
+  "Expands dotted keys in a single object/map.
+
+  Iterates through all keys and expands those that are expandable,
+  leaving others as literal keys.
+
+  Returns object with expanded keys."
+  [obj strict expand-paths]
+  (reduce-kv
+    (fn [acc key value]
+      (let [expanded-value (expand value strict expand-paths)]
+        (if (expandable-key? key)
+          (expanded-key acc key expanded-value strict)
+          (literal-key acc key expanded-value strict))))
+    {}
+    obj))
+
+
 (defn expand
   "Expands dotted keys into nested objects in safe mode.
 
@@ -208,35 +272,7 @@
 
     ;; Object - expand dotted keys
     (map? value)
-    (let [expanded-object
-          (reduce-kv
-            (fn [acc key key-value]
-              ;; Check if key contains dots and should be expanded
-              (if (and (str/includes? key const/dot)
-                       (let [segments (str/split key dot-pattern)]
-                         (every? utils/identifier-segment? segments)))
-                ;; Expandable - split and insert
-                (let [segments (str/split key dot-pattern)
-                      expanded-value (expand key-value strict expand-paths)]
-                  (insert-path acc segments expanded-value strict))
-
-                ;; Not expandable - keep as literal key, but still recursively expand the value
-                (let [expanded-value (expand key-value strict expand-paths)]
-                  ;; Check for conflicts with already-expanded keys
-                  (if (contains? acc key)
-                    (let [conflicting-value (get acc key)]
-                      (if (can-merge? conflicting-value expanded-value)
-                        (assoc acc key (merge-objects conflicting-value expanded-value strict))
-                        (handle-conflict strict
-                                        {:key key}
-                                        conflicting-value
-                                        expanded-value
-                                        #(assoc acc key expanded-value))))
-                    ;; No conflict - insert directly
-                    (assoc acc key expanded-value)))))
-            {}
-            value)]
-      expanded-object)
+    (expanded-object value strict expand-paths)
 
     ;; Primitive - return as-is
     :else

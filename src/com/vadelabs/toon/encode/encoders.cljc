@@ -149,6 +149,89 @@
 ;; Object Encoding
 ;; ============================================================================
 
+(defn- collapsed-leaf-primitive
+  "Encodes a collapsed key with primitive leaf value.
+
+  Returns updated LineWriter."
+  [quoted-key leaf-value delimiter depth writer]
+  (let [encoded-value (prim/encode leaf-value delimiter)
+        line (str quoted-key const/colon const/space encoded-value)]
+    (writer/push writer depth line)))
+
+
+(defn- collapsed-leaf-array
+  "Encodes a collapsed key with array leaf value.
+
+  Returns updated LineWriter."
+  [quoted-key leaf-value delimiter depth writer]
+  (cond
+    (empty? leaf-value)
+    (writer/push writer depth (str quoted-key const/empty-array-with-length))
+
+    (norm/array-of-primitives? leaf-value)
+    (let [header (str quoted-key (array/array-header (count leaf-value) delimiter) const/colon const/space)
+          encoded-values (map #(prim/encode % delimiter) leaf-value)
+          values-str (str/join delimiter encoded-values)
+          line (str header values-str)]
+      (writer/push writer depth line))
+
+    :else
+    (let [header (str quoted-key (array/array-header (count leaf-value) delimiter) const/colon)
+          w (writer/push writer depth header)]
+      (array/encode leaf-value delimiter (inc depth) w))))
+
+
+(defn- fully-collapsed-pair
+  "Encodes a key-value pair that has been fully collapsed to a leaf.
+
+  Handles primitive leaves, array leaves, and empty object leaves.
+
+  Returns updated LineWriter."
+  [quoted-key leaf-value options depth writer]
+  (cond
+    ;; Leaf is a primitive
+    (norm/primitive? leaf-value)
+    (collapsed-leaf-primitive quoted-key leaf-value (:delimiter options) depth writer)
+
+    ;; Leaf is an array
+    (vector? leaf-value)
+    (collapsed-leaf-array quoted-key leaf-value (:delimiter options) depth writer)
+
+    ;; Leaf is empty object
+    (and (map? leaf-value) (empty? leaf-value))
+    (writer/push writer depth (str quoted-key const/colon))
+
+    :else
+    writer))
+
+
+(defn- partially-collapsed-pair
+  "Encodes a key-value pair that has been partially collapsed.
+
+  Writes the collapsed key and encodes the remainder as a nested object.
+
+  Returns updated LineWriter."
+  [quoted-key remainder options depth writer]
+  (let [w (writer/push writer depth (str quoted-key const/colon))]
+    (object remainder options (inc depth) w)))
+
+
+(defn- collapsed-pair
+  "Encodes a key-value pair using the collapsed result.
+
+  Dispatches to fully or partially collapsed encoding based on remainder.
+
+  Returns updated LineWriter."
+  [collapse-result options depth writer]
+  (let [{:keys [collapsed-key remainder leaf-value]} collapse-result
+        quoted-key (quote/maybe-quote-key collapsed-key)]
+    (if (nil? remainder)
+      ;; Fully collapsed - leaf value
+      (fully-collapsed-pair quoted-key leaf-value options depth writer)
+      ;; Partially collapsed - has remainder
+      (partially-collapsed-pair quoted-key remainder options depth writer))))
+
+
 (defn key-value-pair
   "Encodes a single key-value pair by dispatching to appropriate encoder.
 
@@ -176,53 +259,10 @@
   ([k v options depth writer siblings]
    ;; Try key collapsing if enabled and siblings provided
    (if-let [collapse-result (and siblings (keys/collapse k v siblings options))]
-     ;; Collapsing succeeded - use collapsed key
-     (let [{:keys [collapsed-key remainder leaf-value]} collapse-result
-           quoted-key (quote/maybe-quote-key collapsed-key)]
-       (cond
-         ;; Case 1: Fully collapsed to a leaf value
-         (nil? remainder)
-         (cond
-           ;; Leaf is a primitive
-           (norm/primitive? leaf-value)
-           (let [encoded-value (prim/encode leaf-value (:delimiter options))
-                 line (str quoted-key const/colon const/space encoded-value)]
-             (writer/push writer depth line))
+     ;; Collapsing succeeded - encode using collapsed result
+     (collapsed-pair collapse-result options depth writer)
 
-           ;; Leaf is an array
-           (vector? leaf-value)
-           (cond
-             (empty? leaf-value)
-             (writer/push writer depth (str quoted-key const/empty-array-with-length))
-
-             (norm/array-of-primitives? leaf-value)
-             (let [header (str quoted-key (array/array-header (count leaf-value) (:delimiter options)) const/colon const/space)
-                   encoded-values (map #(prim/encode % (:delimiter options)) leaf-value)
-                   values-str (str/join (:delimiter options) encoded-values)
-                   line (str header values-str)]
-               (writer/push writer depth line))
-
-             :else
-             (let [header (str quoted-key (array/array-header (count leaf-value) (:delimiter options)) const/colon)
-                   w (writer/push writer depth header)]
-               (array/encode leaf-value (:delimiter options) (inc depth) w)))
-
-           ;; Leaf is empty object
-           (and (map? leaf-value) (empty? leaf-value))
-           (writer/push writer depth (str quoted-key const/colon))
-
-           :else
-           writer)
-
-         ;; Case 2: Partially collapsed with remainder
-         (map? remainder)
-         (let [w (writer/push writer depth (str quoted-key const/colon))]
-           (object remainder options (inc depth) w))
-
-         :else
-         writer))
-
-     ;; No collapsing - dispatch normally
+     ;; No collapsing - dispatch based on value type
      (cond
        (norm/primitive? v)
        (primitive-pair k v options depth writer)
