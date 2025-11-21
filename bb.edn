@@ -3,10 +3,10 @@
  :tasks
  {:require [[clojure.string :as str]]
 
-  test {:doc "Run the test suite."
-        :task (clojure "-M:test" "-m" "cognitect.test-runner")}
+  test:clj {:doc "Run Clojure JVM tests."
+            :task (clojure "-M:test" "-m" "cognitect.test-runner")}
 
-  test:bb {:doc "Run the test suite using Babashka to check compatibility."
+  test:bb {:doc "Run Babashka tests for compatibility."
            :extra-paths ["test"]
            :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                          org.clojure/test.check {:mvn/version "1.1.1"}}
@@ -15,11 +15,11 @@
   test:cljs {:doc "Run ClojureScript tests in Node.js."
              :task (clojure "-M:test-cljs")}
 
-  test:all {:doc "Run the test suite with Clojure, Babashka, and ClojureScript."
-            :depends [test test:bb test:cljs]}
+  test {:doc "Run all tests (Clojure, Babashka, and ClojureScript)."
+        :depends [test:clj test:bb test:cljs]}
 
   ci {:doc "Run the CI pipeline of tests and build the JAR."
-      :depends [test]
+      :depends [test:clj]
       :task (clojure "-T:build" "jar")}
 
   ci:deploy {:doc "Run the CI pipeline and deploy the JAR."
