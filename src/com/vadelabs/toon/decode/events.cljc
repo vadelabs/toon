@@ -22,9 +22,13 @@
 
 
 (defn start-array
-  "Event emitted when array parsing begins."
-  []
-  {:type :start-array})
+  "Event emitted when array parsing begins.
+
+  Parameters:
+    - length: Array length (for feature parity with TypeScript implementation)"
+  [length]
+  {:type :start-array
+   :length length})
 
 
 (defn end-array
@@ -37,10 +41,14 @@
   "Event emitted when object key is encountered.
 
   Parameters:
-    - k: Key string"
-  [k]
-  {:type :key
-   :key k})
+    - k: Key string
+    - was-quoted: Optional boolean indicating if key was quoted in source (default: false)"
+  ([k]
+   (key-event k false))
+  ([k was-quoted]
+   {:type :key
+    :key k
+    :was-quoted was-quoted}))
 
 
 (defn primitive
@@ -57,27 +65,33 @@
 ;; Event Predicates
 ;; ============================================================================
 
-(defn start-object? [event]
+(defn start-object?
+  [event]
   (= :start-object (:type event)))
 
 
-(defn end-object? [event]
+(defn end-object?
+  [event]
   (= :end-object (:type event)))
 
 
-(defn start-array? [event]
+(defn start-array?
+  [event]
   (= :start-array (:type event)))
 
 
-(defn end-array? [event]
+(defn end-array?
+  [event]
   (= :end-array (:type event)))
 
 
-(defn key-event? [event]
+(defn key-event?
+  [event]
   (= :key (:type event)))
 
 
-(defn primitive? [event]
+(defn primitive?
+  [event]
   (= :primitive (:type event)))
 
 
@@ -85,15 +99,38 @@
 ;; Event Utilities
 ;; ============================================================================
 
-(defn event-value
-  "Extract value from primitive event."
+(defn value
+  "Extract value from primitive event.
+
+  Following Stuart Sierra's naming: pure function returning a value uses a noun."
   [event]
   (when (primitive? event)
     (:value event)))
 
 
-(defn event-key
-  "Extract key from key event."
+(defn key
+  "Extract key from key event.
+
+  Following Stuart Sierra's naming: pure function returning a value uses a noun."
   [event]
   (when (key-event? event)
     (:key event)))
+
+
+(defn was-quoted
+  "Extract wasQuoted flag from key event.
+
+  Following Stuart Sierra's naming: pure function returning a value uses a noun.
+  Returns true if the key was quoted in the original TOON source, false otherwise."
+  [event]
+  (when (key-event? event)
+    (:was-quoted event)))
+
+
+(defn length
+  "Extract length from start-array event.
+
+  Following Stuart Sierra's naming: pure function returning a value uses a noun."
+  [event]
+  (when (start-array? event)
+    (:length event)))
