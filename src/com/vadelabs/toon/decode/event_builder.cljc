@@ -39,9 +39,10 @@
   (let [values (:inline-values header-info)
         delimiter (:delimiter header-info)
         raw-values (parser/delimited-values values delimiter)
-        parsed-values (map #(parser/primitive-token % strict) raw-values)]
+        parsed-values (map #(parser/primitive-token % strict) raw-values)
+        length (:length header-info)]
     (concat
-      [(events/start-array)]
+      [(events/start-array length)]
       (map events/primitive parsed-values)
       [(events/end-array)])))
 
@@ -51,9 +52,9 @@
   [header-info cursor depth strict]
   (let [fields (:fields header-info)
         delimiter (:delimiter header-info)
-        count-expected (:count header-info)]
+        length (:length header-info)]
     (loop [current-cursor cursor
-           events-acc [(events/start-array)]
+           events-acc [(events/start-array length)]
            items-seen 0]
       (let [line (scanner/peek-at-depth current-cursor depth)]
         (if-not line
@@ -79,9 +80,9 @@
 (defn- emit-list-array-events
   "Emit events for list array: [2]: - item1 / - item2"
   [header-info cursor depth strict]
-  (let [count-expected (:count header-info)]
+  (let [length (:length header-info)]
     (loop [current-cursor cursor
-           events-acc [(events/start-array)]
+           events-acc [(events/start-array length)]
            items-seen 0]
       (let [line (scanner/peek-at-depth current-cursor depth)]
         (if-not line
@@ -145,9 +146,10 @@
       (and (str/includes? key-str "[")
            value-str
            (re-matches empty-array-pattern (str/trim value-str)))
-      [(events/key-event (parser/key-token key-str))
-       (events/start-array)
-       (events/end-array)]
+      (let [{:keys [key was-quoted]} (parser/key-token key-str)]
+        [(events/key-event key was-quoted)
+         (events/start-array 0)
+         (events/end-array)])
 
       ;; Array header: key[3]: values or nested
       (and (str/includes? key-str "[")
@@ -160,23 +162,23 @@
 
       ;; Check for nested content
       (scanner/has-more-at-depth? cursor (inc depth))
-      (let [field-key (parser/key-token key-str)
+      (let [{field-key :key was-quoted :was-quoted} (parser/key-token key-str)
             nested-events (emit-value-events
                             value-str
                             cursor
                             (inc depth)
                             strict)]
         (concat
-          [(events/key-event field-key)]
+          [(events/key-event field-key was-quoted)]
           nested-events))
 
       ;; Inline primitive value
       :else
-      (let [field-key (parser/key-token key-str)
+      (let [{field-key :key was-quoted :was-quoted} (parser/key-token key-str)
             field-value (if value-str
                           (parser/primitive-token value-str strict)
                           nil)]
-        [(events/key-event field-key)
+        [(events/key-event field-key was-quoted)
          (events/primitive field-value)]))))
 
 
@@ -254,7 +256,7 @@
           ;; Empty array at root: [0]
           (and (str/starts-with? (str/trim content) "[")
                (re-matches empty-array-pattern (str/trim content)))
-          [(events/start-array) (events/end-array)]
+          [(events/start-array 0) (events/end-array)]
 
           ;; Array header at root (no key before bracket)
           (and (str/includes? content "[")
