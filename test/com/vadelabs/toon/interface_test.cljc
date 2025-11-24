@@ -155,3 +155,64 @@
                       "profile" {"age" 30.0
                                  "active" true}}}
              decoded)))))
+
+
+;; ============================================================================
+;; lines->value Function Tests
+;; ============================================================================
+
+(deftest lines->value-simple-object-test
+  (testing "Decode simple object from lines"
+    (is (= {"name" "Alice" "age" 30.0}
+           (trim/lines->value ["name: Alice" "age: 30"])))))
+
+
+(deftest lines->value-nested-object-test
+  (testing "Decode nested object from lines"
+    (is (= {"user" {"name" "Alice" "age" 30.0}}
+           (trim/lines->value ["user:" "  name: Alice" "  age: 30"])))))
+
+
+(deftest lines->value-inline-array-test
+  (testing "Decode inline array from lines"
+    (is (= [1.0 2.0 3.0]
+           (trim/lines->value ["[3]: 1,2,3"])))))
+
+
+(deftest lines->value-object-with-array-test
+  (testing "Decode object with array field from lines"
+    (is (= {"tags" ["dev" "clojure"]}
+           (trim/lines->value ["tags[2]: dev,clojure"])))))
+
+
+(deftest lines->value-path-expansion-test
+  (testing "Decode with path expansion disabled (default)"
+    (is (= {"user.name" "Alice" "user.age" 30.0}
+           (trim/lines->value ["user.name: Alice" "user.age: 30"]))))
+
+  (testing "Decode with path expansion enabled"
+    (is (= {"user" {"name" "Alice" "age" 30.0}}
+           (trim/lines->value ["user.name: Alice" "user.age: 30"]
+                             {:expand-paths :safe})))))
+
+
+(deftest lines->value-equivalence-with-decode-test
+  (testing "lines->value produces same result as decode"
+    (let [toon-str "name: Alice\nage: 30\ntags[2]: dev,clojure"
+          lines ["name: Alice" "age: 30" "tags[2]: dev,clojure"]
+          from-decode (trim/decode toon-str)
+          from-lines (trim/lines->value lines)]
+      (is (= from-decode from-lines)))))
+
+
+(deftest lines->value-empty-lines-test
+  (testing "Empty lines sequence returns empty map"
+    (is (= {} (trim/lines->value [])))))
+
+
+(deftest lines->value-single-primitive-test
+  (testing "Single primitive value from lines"
+    (is (= 42.0 (trim/lines->value ["42"])))
+    (is (= "hello" (trim/lines->value ["hello"])))
+    (is (= true (trim/lines->value ["true"])))
+    (is (nil? (trim/lines->value ["null"])))))
