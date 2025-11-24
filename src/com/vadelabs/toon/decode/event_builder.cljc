@@ -17,6 +17,7 @@
 
 (declare emit-value-events)
 (declare emit-object-events)
+(declare emit-object-field-events)
 (declare emit-array-events)
 
 
@@ -95,18 +96,52 @@
             (if is-list-item?
               ;; List item - emit events for the value
               (let [item-content (str/trim (subs content 1))
-                    has-children? (scanner/has-more-at-depth? current-cursor (inc depth))
-                    item-events (if has-children?
-                                  ;; Nested structure
-                                  (emit-value-events
-                                    item-content
-                                    (scanner/advance-cursor current-cursor)
-                                    (inc depth)
-                                    strict)
-                                  ;; Primitive value
-                                  [(events/primitive (parser/primitive-token item-content strict))])
-                    new-cursor (scanner/advance-cursor current-cursor)]
-                (recur new-cursor
+                    next-cursor (scanner/advance-cursor current-cursor)
+                    has-children? (scanner/has-more-at-depth? next-cursor (inc depth))
+                    has-inline-field? (and (not (str/blank? item-content))
+                                          (str/includes? item-content ":"))
+                    [item-events final-cursor] (cond
+                                             ;; Object with inline first field + nested children
+                                             (and has-inline-field? has-children?)
+                                             (let [[key-part value-part] (str/split item-content #":" 2)
+                                                   {field-key :key was-quoted :was-quoted} (parser/key-token key-part)
+                                                   field-value (when value-part
+                                                                (parser/primitive-token (str/trim value-part) strict))
+                                                   ;; Process child fields at next depth
+                                                   [child-field-events end-cursor]
+                                                   (loop [c next-cursor
+                                                          acc []]
+                                                     (let [child-line (scanner/peek-at-depth c (inc depth))]
+                                                       (if-not child-line
+                                                         [acc c]
+                                                         (let [field-evts (emit-object-field-events
+                                                                           child-line
+                                                                           (scanner/advance-cursor c)
+                                                                           (inc depth)
+                                                                           strict)]
+                                                           (recur (scanner/advance-cursor c)
+                                                                  (into acc field-evts))))))]
+                                               [(concat [(events/start-object)
+                                                         (events/key-event field-key was-quoted)
+                                                         (events/primitive field-value)]
+                                                        child-field-events
+                                                        [(events/end-object)])
+                                                end-cursor])
+
+                                             ;; Nested structure (no inline field)
+                                             has-children?
+                                             [(emit-value-events
+                                               item-content
+                                               next-cursor
+                                               (inc depth)
+                                               strict)
+                                              next-cursor]
+
+                                             ;; Primitive value
+                                             :else
+                                             [[(events/primitive (parser/primitive-token item-content strict))]
+                                              next-cursor])]
+                (recur final-cursor
                        (into events-acc item-events)
                        (inc items-seen)))
               ;; Not a list item, end of array

@@ -493,13 +493,12 @@
 ;; List Array with Nested Objects
 ;; ============================================================================
 
-;; NOTE: Commented out - list arrays with nested objects not yet fully supported in streaming mode
-;; (deftest test-list-array-with-nested-objects
-;;   (testing "List array containing nested objects"
-;;     (let [input "users[2]:\n  - name: Alice\n    age: 30\n  - name: Bob\n    age: 25"
-;;           regular-result (toon/decode input)
-;;           stream-result (toon/events->value (toon/events input))]
-;;       (is (= regular-result stream-result))
-;;       (is (= {"users" [{"name" "Alice" "age" 30.0}
-;;                        {"name" "Bob" "age" 25.0}]}
-;;              stream-result)))))
+(deftest test-list-array-with-nested-objects
+  (testing "List array containing nested objects"
+    (let [input "users[2]:\n  - name: Alice\n    age: 30\n  - name: Bob\n    age: 25"
+          regular-result (toon/decode input)
+          stream-result (toon/events->value (toon/events input))]
+      (is (= regular-result stream-result))
+      (is (= {"users" [{"name" "Alice" "age" 30.0}
+                       {"name" "Bob" "age" 25.0}]}
+             stream-result)))))
