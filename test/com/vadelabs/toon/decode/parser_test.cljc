@@ -331,32 +331,32 @@
 
 (deftest parse-simple-key-test
   (testing "Parse simple unquoted key"
-    (is (= "name" (parser/key-token "name")))))
+    (is (= {:key "name" :was-quoted false} (parser/key-token "name")))))
 
 
 (deftest parse-key-with-trailing-colon-test
   (testing "Parse key with trailing colon"
-    (is (= "name" (parser/key-token "name:")))))
+    (is (= {:key "name" :was-quoted false} (parser/key-token "name:")))))
 
 
 (deftest parse-key-with-spaces-test
   (testing "Parse key with surrounding spaces"
-    (is (= "name" (parser/key-token "  name  ")))))
+    (is (= {:key "name" :was-quoted false} (parser/key-token "  name  ")))))
 
 
 (deftest parse-quoted-key-test
   (testing "Parse quoted key"
-    (is (= "user name" (parser/key-token "\"user name\"")))))
+    (is (= {:key "user name" :was-quoted true} (parser/key-token "\"user name\"")))))
 
 
 (deftest parse-quoted-key-with-colon-test
   (testing "Parse quoted key with trailing colon"
-    (is (= "user name" (parser/key-token "\"user name\":")))))
+    (is (= {:key "user name" :was-quoted true} (parser/key-token "\"user name\":")))))
 
 
 (deftest parse-quoted-key-with-escapes-test
   (testing "Parse quoted key with escape sequences"
-    (is (= "key\nvalue" (parser/key-token "\"key\\nvalue\"")))))
+    (is (= {:key "key\nvalue" :was-quoted true} (parser/key-token "\"key\\nvalue\"")))))
 
 
 ;; ============================================================================
