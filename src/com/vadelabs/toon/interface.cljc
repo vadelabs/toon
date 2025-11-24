@@ -52,6 +52,49 @@
         writer/to-string)))
 
 
+(defn encode-lines
+  "Encode value into sequence of TOON lines.
+
+  Following Stuart Sierra's naming: pure function, returns lines (noun).
+
+  Yields TOON lines one at a time without building the full string.
+  Useful for streaming large outputs to files, HTTP responses, or stdout.
+  Each line is a string without trailing newline character.
+
+  Parameters:
+    - input: Any Clojure value (maps, vectors, primitives)
+    - options: Optional map with keys (same as encode):
+      - :indent - Number of spaces per indentation level (default: 2)
+      - :delimiter - Delimiter for array values: \",\" (default), \"\\t\", or \"|\"
+      - :key-collapsing - Key collapsing mode (default: :off)
+      - :flatten-depth - Depth for array flattening (default: Infinity)
+
+  Returns:
+    Sequence of strings (one per line, no newline characters)
+
+  Example:
+    (doseq [line (encode-lines {:name \"Alice\" :age 30})]
+      (println line))
+    ; name: Alice
+    ; age: 30
+
+    ;; Equivalence with encode
+    (= (str/join \"\\n\" (encode-lines data))
+       (encode data))
+
+  See also: encode"
+  [input & [options]]
+  (let [opts (merge {:indent 2
+                     :delimiter ","
+                     :key-collapsing :off
+                     :flatten-depth ##Inf}
+                    options)
+        writer (-> input
+                   norm/normalize-value
+                   (encoders/value opts 0 (writer/create (:indent opts))))]
+    (:lines writer)))
+
+
 (defn decode
   "Decodes TOON (Token-Oriented Object Notation) format to Clojure data structures.
 
