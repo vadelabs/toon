@@ -1,5 +1,6 @@
 (ns com.vadelabs.toon.interface
   (:require
+    [clojure.string :as str]
     [com.vadelabs.toon.decode.decoders :as decoders]
     [com.vadelabs.toon.decode.keys :as keys]
     [com.vadelabs.toon.decode.scanner :as scanner]
@@ -212,3 +213,39 @@
   See also: events, events-ch"
   [events]
   (value-builder/events->value events))
+
+
+(defn lines->value
+  "Decode TOON from pre-split lines with full decode options.
+
+  Convenience function that bridges streaming and regular decode.
+  Unlike events->value, this supports path expansion options.
+
+  Parameters:
+    - lines: Sequence of TOON lines (strings)
+    - options: Optional map with keys:
+      - :indent - Number of spaces per indentation level (default: 2)
+      - :strict - Enable strict validation (default: true)
+      - :expand-paths - Path expansion mode: :off (default) or :safe
+
+  Returns:
+    Decoded value (map, vector, or primitive)
+
+  Example:
+    (lines->value [\"name: Alice\" \"age: 30\"])
+    ;=> {\"name\" \"Alice\", \"age\" 30}
+
+    (lines->value [\"user.name: Alice\" \"user.age: 30\"] {:expand-paths :safe})
+    ;=> {\"user\" {\"name\" \"Alice\", \"age\" 30}}
+
+  See also: decode, events, events->value"
+  [lines & [options]]
+  (let [opts (merge {:indent 2
+                     :strict true
+                     :expand-paths :off}
+                    options)
+        input (str/join "\n" lines)]
+    (-> input
+        (events opts)
+        events->value
+        (keys/expand (:strict opts) (:expand-paths opts)))))
