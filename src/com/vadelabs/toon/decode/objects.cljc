@@ -135,7 +135,7 @@
              [obj remaining-cursor]
              (let [key-part (subs content 0 colon-pos)
                    value-part (str/trim (subs content (inc colon-pos)))
-                   k (parser/key-token key-part)
+                   k (:key (parser/key-token key-part))
                    has-array-header? (str/includes? key-part "[")
                    has-inline-value? (not (empty? value-part))]
                (cond
@@ -207,7 +207,7 @@
                        :examples ["- name: Alice" "- id: 123" "- active: true"]})))
     (let [key-part (subs after-marker 0 colon-pos)
           value-part (str/trim (subs after-marker (inc colon-pos)))
-          first-key (parser/key-token key-part)
+          first-key (:key (parser/key-token key-part))
           first-value (if (empty? value-part)
                         nil
                         (parser/primitive-token value-part strict))
