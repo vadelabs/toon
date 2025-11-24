@@ -396,20 +396,23 @@
     - key-str: Key string (may include trailing colon)
 
   Returns:
-    Key string (unquoted and unescaped if quoted)
+    Map with {:key \"parsed-key\" :was-quoted boolean}
 
   Example:
-    (parse-key-token \"name\") => \"name\"
-    (parse-key-token \"\\\"user name\\\"\") => \"user name\""
+    (parse-key-token \"name\") => {:key \"name\" :was-quoted false}
+    (parse-key-token \"\\\"user name\\\"\") => {:key \"user name\" :was-quoted true}"
   [key-str]
   (let [trimmed (str/trim key-str)
         ;; Remove trailing colon if present
         without-colon (if (str/ends-with? trimmed ":")
                         (subs trimmed 0 (dec (count trimmed)))
                         trimmed)
-        key-only (str/trim without-colon)]
-    (if (str/starts-with? key-only "\"")
+        key-only (str/trim without-colon)
+        is-quoted? (str/starts-with? key-only "\"")]
+    (if is-quoted?
       ;; Quoted key: parse as string literal
-      (string-literal key-only)
+      {:key (string-literal key-only)
+       :was-quoted true}
       ;; Unquoted key: return as-is
-      key-only)))
+      {:key key-only
+       :was-quoted false})))
