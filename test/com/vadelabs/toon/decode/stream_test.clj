@@ -33,9 +33,9 @@
       (is (= 6 (count events)))
       (is (events/start-object? (first events)))
       (is (events/end-object? (last events)))
-      (is (= "name" (events/key (nth events 1))))
+      (is (= "name" (events/event-key (nth events 1))))
       (is (= "Alice" (events/value (nth events 2))))
-      (is (= "age" (events/key (nth events 3))))
+      (is (= "age" (events/event-key (nth events 3))))
       (is (= 30.0 (events/value (nth events 4)))))))
 
 
@@ -94,9 +94,9 @@
       (is (>= (count events) 13) "Should have at least 13 events")
       (is (events/start-array? (first events)))
       (is (events/start-object? (nth events 1)))
-      (is (= "id" (events/key (nth events 2))))
+      (is (= "id" (events/event-key (nth events 2))))
       (is (= 1.0 (events/value (nth events 3))))
-      (is (= "name" (events/key (nth events 4))))
+      (is (= "name" (events/event-key (nth events 4))))
       (is (= "Alice" (events/value (nth events 5))))
       (is (events/end-object? (nth events 6)))
       (is (events/end-array? (last events))))))
@@ -114,7 +114,7 @@
                          (filter events/key-event?)
                          first)]
       (is (some? key-event) "Should have a key event")
-      (is (= "name" (events/key key-event)))
+      (is (= "name" (events/event-key key-event)))
       (is (= false (events/was-quoted key-event))
           "unquoted key should have was-quoted false"))))
 
@@ -127,7 +127,7 @@
                          (filter events/key-event?)
                          first)]
       (is (some? key-event) "Should have a key event")
-      (is (= "user.name" (events/key key-event)))
+      (is (= "user.name" (events/event-key key-event)))
       (is (= true (events/was-quoted key-event))
           "quoted key should have was-quoted true"))))
 
@@ -139,13 +139,13 @@
           key-events (filterv events/key-event? events)]
       (is (= 3 (count key-events)) "Should have 3 key events")
       ;; First key: unquoted
-      (is (= "name" (events/key (nth key-events 0))))
+      (is (= "name" (events/event-key (nth key-events 0))))
       (is (= false (events/was-quoted (nth key-events 0))))
       ;; Second key: quoted
-      (is (= "user.id" (events/key (nth key-events 1))))
+      (is (= "user.id" (events/event-key (nth key-events 1))))
       (is (= true (events/was-quoted (nth key-events 1))))
       ;; Third key: unquoted
-      (is (= "age" (events/key (nth key-events 2))))
+      (is (= "age" (events/event-key (nth key-events 2))))
       (is (= false (events/was-quoted (nth key-events 2)))))))
 
 
@@ -156,13 +156,13 @@
           key-events (filterv events/key-event? events)]
       (is (= 3 (count key-events)))
       ;; Outer key: unquoted
-      (is (= "user" (events/key (nth key-events 0))))
+      (is (= "user" (events/event-key (nth key-events 0))))
       (is (= false (events/was-quoted (nth key-events 0))))
       ;; Nested quoted key
-      (is (= "first.name" (events/key (nth key-events 1))))
+      (is (= "first.name" (events/event-key (nth key-events 1))))
       (is (= true (events/was-quoted (nth key-events 1))))
       ;; Nested unquoted key
-      (is (= "age" (events/key (nth key-events 2))))
+      (is (= "age" (events/event-key (nth key-events 2))))
       (is (= false (events/was-quoted (nth key-events 2)))))))
 
 
@@ -236,9 +236,9 @@
       ;; start-obj, key(user), start-obj, key(name), val, key(age), val, end-obj, end-obj
       (is (= 9 (count events)))
       (is (events/start-object? (first events)))
-      (is (= "user" (events/key (nth events 1))))
+      (is (= "user" (events/event-key (nth events 1))))
       (is (events/start-object? (nth events 2)))
-      (is (= "name" (events/key (nth events 3))))
+      (is (= "name" (events/event-key (nth events 3))))
       (is (= "Alice" (events/value (nth events 4))))
       (is (events/end-object? (nth events 7)))
       (is (events/end-object? (last events))))))
@@ -252,10 +252,10 @@
       ;; start-obj, key(name), val, key(tags), start-array, val, val, end-array, end-obj
       (is (= 9 (count events)))
       (is (events/start-object? (first events)))
-      (is (= "name" (events/key (nth events 1))))
+      (is (= "name" (events/event-key (nth events 1))))
       (is (= "Alice" (events/value (nth events 2))))
       ;; The key should be just "tags" not "tags[2]"
-      (is (= "tags" (events/key (nth events 3))))
+      (is (= "tags" (events/event-key (nth events 3))))
       (is (events/start-array? (nth events 4)))
       (is (= "reading" (events/value (nth events 5))))
       (is (= "gaming" (events/value (nth events 6))))
@@ -275,7 +275,7 @@
       (is (= 6 (count events)))
       (is (events/start-object? (first events)))
       (is (events/end-object? (last events)))
-      (is (= "name" (events/key (nth events 1))))
+      (is (= "name" (events/event-key (nth events 1))))
       (is (= "Alice" (events/value (nth events 2)))))))
 
 

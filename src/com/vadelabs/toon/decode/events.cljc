@@ -100,27 +100,21 @@
 ;; ============================================================================
 
 (defn value
-  "Extract value from primitive event.
-
-  Following Stuart Sierra's naming: pure function returning a value uses a noun."
+  "Extract value from primitive event."
   [event]
   (when (primitive? event)
     (:value event)))
 
 
-(defn key
-  "Extract key from key event.
-
-  Following Stuart Sierra's naming: pure function returning a value uses a noun."
+(defn event-key
+  "Extract key from key event."
   [event]
   (when (key-event? event)
     (:key event)))
 
 
 (defn was-quoted
-  "Extract wasQuoted flag from key event.
-
-  Following Stuart Sierra's naming: pure function returning a value uses a noun.
+  "Extract was-quoted flag from key event.
   Returns true if the key was quoted in the original TOON source, false otherwise."
   [event]
   (when (key-event? event)
@@ -128,9 +122,7 @@
 
 
 (defn length
-  "Extract length from start-array event.
-
-  Following Stuart Sierra's naming: pure function returning a value uses a noun."
+  "Extract length from start-array event."
   [event]
   (when (start-array? event)
     (:length event)))

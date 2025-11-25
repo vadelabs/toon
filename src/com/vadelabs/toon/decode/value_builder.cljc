@@ -113,7 +113,7 @@
       (throw (ex-info "Key event in non-object context" {:parent parent :event event})))
     (-> stack
         pop
-        (conj (assoc parent :current-key (events/key event))))))
+        (conj (assoc parent :current-key (events/event-key event))))))
 
 
 (defn- handle-primitive
