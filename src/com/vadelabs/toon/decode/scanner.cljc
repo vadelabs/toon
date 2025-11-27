@@ -12,242 +12,168 @@
 ;; ============================================================================
 
 (defn parsed-line
+  "Create a parsed line record."
   [raw depth indent content line-number]
   {:raw raw :depth depth :indent indent
    :content content :line-number line-number})
 
 
 (defn blank-line-info
+  "Create blank line info record."
   [line-number indent depth]
   {:line-number line-number :indent indent :depth depth})
 
 
 (defn scan-result
+  "Create scan result containing lines and blank lines."
   [lines blank-lines]
   {:lines lines :blank-lines blank-lines})
 
 
 ;; ============================================================================
-;; Constants
-;; ============================================================================
-
-(def ^:private leading-spaces-pattern
-  "Regex pattern for matching leading spaces."
-  #"^( *)")
-
-(def ^:private newline-pattern
-  "Regex pattern for splitting on newlines."
-  #"\n")
-
-
-;; ============================================================================
-;; Line Scanning
+;; Line Parsing Helpers
 ;; ============================================================================
 
 (defn- count-leading-spaces
-  "Counts leading spaces in a string.
-
-  Returns number of spaces before first non-space character."
+  "Counts leading spaces in a string."
   [s]
-  (-> (re-find leading-spaces-pattern s)
-      second
-      count))
+  (- (count s) (count (str/triml s))))
 
 
 (defn- blank-line?
   "Checks if a line is blank (only whitespace)."
   [s]
-  (or (str/blank? s)
+  (or (nil? s)
+      (str/blank? s)
       (every? #{\space \tab} s)))
 
 
-(defn- validate-indentation-strict
-  "Validates indentation in strict mode.
-
-  Throws ex-info if:
-  - Line contains tabs
-  - Indentation is not a multiple of indent-size
-
-  Parameters:
-    - line: Line string
-    - line-number: 1-indexed line number
-    - indent: Number of leading spaces
-    - indent-size: Expected indentation unit
-
-  Returns:
-    nil on success, throws on error"
+(defn- validate-indentation!
+  "Validates indentation in strict mode. Throws on error."
   [line line-number indent indent-size]
   (when (str/includes? line "\t")
     (throw (ex-info (str "Tabs not allowed for indentation in strict mode (line " line-number ")")
                     {:type :invalid-indentation
                      :line-number line-number
-                     :line line
-                     :suggestion "Replace tabs with spaces for indentation"
-                     :note "Use :strict false option to allow tabs"})))
-
+                     :line line})))
   (when-not (zero? (mod indent indent-size))
     (throw (ex-info (str "Indentation must be multiple of " indent-size " spaces (line " line-number ")")
                     {:type :invalid-indentation
                      :line-number line-number
                      :indent indent
-                     :indent-size indent-size
-                     :suggestion (str "Use " (* indent-size (quot (+ indent indent-size -1) indent-size)) " spaces instead of " indent)
-                     :valid-indents (vec (map #(* % indent-size) (range 0 5)))}))))
+                     :indent-size indent-size}))))
 
 
-(defn- raw-lines
-  "Splits input into raw lines.
-
-  Returns vector of line strings."
-  [input]
-  (if (empty? input)
-    []
-    (str/split input newline-pattern -1)))
-
-
-(defn- line-metadata
-  "Computes metadata for a single line.
-
-  Returns map with {:indent, :depth, :content}."
-  [line indent-size]
-  (let [indent (count-leading-spaces line)
-        depth (quot indent indent-size)
-        content (str/triml line)]
-    {:indent indent
-     :depth depth
-     :content content}))
-
-
-(defn- process-blank-line
-  "Processes a blank line.
-
-  Returns updated accumulator with blank line tracked."
-  [line-num indent depth lines blank-lines]
-  {:lines lines
-   :blank-lines (conj blank-lines (blank-line-info line-num indent depth))})
-
-
-(defn- process-content-line
-  "Processes a content line with validation.
-
-  Returns updated accumulator with parsed line added."
-  [line line-num indent depth content indent-size strict lines blank-lines]
-  (when strict
-    (validate-indentation-strict line line-num indent indent-size))
-  {:lines (conj lines (parsed-line line depth indent content line-num))
-   :blank-lines blank-lines})
-
+;; ============================================================================
+;; Public API
+;; ============================================================================
 
 (defn to-parsed-lines
-  "Parses TOON text into structured lines.
-
-  Splits input on newlines, computes depth from indentation,
-  and tracks blank lines separately.
+  "Parse TOON text into structured lines.
 
   Parameters:
     - input: TOON text string
-    - indent-size: Number of spaces per indentation level (default 2)
-    - strict: Enable strict mode validation (default true)
+    - indent-size: Spaces per indent level (default: 2)
+    - strict: Enable strict validation (default: true)
 
   Returns:
-    ScanResult with {:lines, :blank-lines}
-
-  Strict mode validates:
-    - No tabs in indentation
-    - Indentation is multiple of indent-size"
+    ScanResult with {:lines, :blank-lines}"
   ([input]
    (to-parsed-lines input 2 true))
   ([input indent-size]
    (to-parsed-lines input indent-size true))
   ([input indent-size strict]
-   (loop [remaining (raw-lines input)
-          line-num 1
-          lines []
-          blank-lines []]
-     (if (empty? remaining)
-       (scan-result lines blank-lines)
-       (let [line (first remaining)
-             {:keys [indent depth content]} (line-metadata line indent-size)
-             result (if (blank-line? line)
-                      (process-blank-line line-num indent depth lines blank-lines)
-                      (process-content-line line line-num indent depth content
-                                          indent-size strict lines blank-lines))]
-         (recur (rest remaining)
-                (inc line-num)
-                (:lines result)
-                (:blank-lines result)))))))
+   (let [raw-lines (if (empty? input)
+                     []
+                     (str/split input #"\n" -1))]
+     (loop [remaining raw-lines
+            line-num 0
+            lines []
+            blank-lines []]
+       (if (empty? remaining)
+         (scan-result lines blank-lines)
+         (let [line (first remaining)
+               line-num' (inc line-num)
+               indent (count-leading-spaces (or line ""))
+               depth (quot indent indent-size)]
+           (if (blank-line? line)
+             (recur (rest remaining)
+                    line-num'
+                    lines
+                    (conj blank-lines (blank-line-info line-num' indent depth)))
+             (do
+               (when strict
+                 (validate-indentation! line line-num' indent indent-size))
+               (recur (rest remaining)
+                      line-num'
+                      (conj lines (parsed-line line depth indent (str/trim line) line-num'))
+                      blank-lines)))))))))
 
 
 ;; ============================================================================
 ;; LineCursor - Iterator for line navigation
 ;; ============================================================================
 
-(defrecord LineCursor
-  [lines blank-lines position]
-
-  Object
-
-  (toString
-    [_]
-    (str "LineCursor{position: " position ", total: " (count lines) "}")))
+(defrecord LineCursor [lines blank-lines position])
 
 
 (defn create-cursor
+  "Create a cursor from lines and blank-lines vectors."
   [lines blank-lines]
   (->LineCursor lines blank-lines 0))
 
 
 (defn cursor-from-scan-result
+  "Create a cursor from a scan result."
   [{:keys [lines blank-lines]}]
   (create-cursor lines blank-lines))
 
 
 (defn peek-cursor
-  [^LineCursor cursor]
+  "Get current line without advancing."
+  [cursor]
   (let [pos (:position cursor)
         lines (:lines cursor)]
     (when (< pos (count lines))
       (nth lines pos))))
 
 
-(defn next-cursor
-  [^LineCursor cursor]
-  (let [line (peek-cursor cursor)]
-    (if line
-      [line (->LineCursor (:lines cursor)
-                          (:blank-lines cursor)
-                          (inc (:position cursor)))]
-      [nil cursor])))
-
-
 (defn advance-cursor
+  "Advance cursor by n positions (default: 1)."
   ([cursor] (advance-cursor cursor 1))
-  ([^LineCursor cursor n]
+  ([cursor n]
    (->LineCursor (:lines cursor)
                  (:blank-lines cursor)
                  (+ (:position cursor) n))))
 
 
+(defn next-cursor
+  "Get current line and advance cursor. Returns [line new-cursor]."
+  [cursor]
+  [(peek-cursor cursor) (advance-cursor cursor)])
+
+
 (defn at-end?
-  [^LineCursor cursor]
+  "Check if cursor is at end of lines."
+  [cursor]
   (>= (:position cursor) (count (:lines cursor))))
 
 
 (defn peek-at-depth
-  [^LineCursor cursor target-depth]
+  "Get current line if it matches target depth."
+  [cursor target-depth]
   (let [line (peek-cursor cursor)]
     (when (and line (= (:depth line) target-depth))
       line)))
 
 
 (defn has-more-at-depth?
-  [^LineCursor cursor target-depth]
+  "Check if there are more lines at target depth."
+  [cursor target-depth]
   (some? (peek-at-depth cursor target-depth)))
 
 
 (defn get-blank-lines-in-range
-  [^LineCursor cursor start-line end-line]
-  (let [blank-lines (:blank-lines cursor)]
-    (filterv #(and (>= (:line-number %) start-line)
-                   (<= (:line-number %) end-line))
-             blank-lines)))
+  "Get blank lines within line number range [start, end]."
+  [cursor start end]
+  (filterv #(<= start (:line-number %) end) (:blank-lines cursor)))
