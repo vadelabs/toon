@@ -5,16 +5,34 @@
   Instead of building complete value trees, emits parse events that can be
   consumed incrementally."
   (:require
-    #?(:clj [clojure.core.async :as async]
+    #?(:clj [clojure.core.async :as async :refer [go]]
        :cljs [cljs.core.async :as async])
-    #?(:clj [clojure.core.async.impl.protocols :as async-proto]
-       :cljs [cljs.core.async.impl.protocols :as async-proto])
     [clojure.string :as str]
     [com.vadelabs.toon.decode.event-builder :as event-builder]
     [com.vadelabs.toon.decode.scanner :as scanner])
   #?(:cljs
      (:require-macros
        [cljs.core.async.macros :refer [go]])))
+
+
+;; ============================================================================
+;; Internal Helpers
+;; ============================================================================
+
+(def ^:private default-options
+  {:indent 2
+   :strict true
+   :buf-size 32})
+
+
+(defn- normalize-source
+  "Normalize input to a sequence of lines.
+  Returns nil for non-string, non-sequential sources (e.g., channels)."
+  [source]
+  (cond
+    (string? source) (str/split-lines source)
+    (sequential? source) source
+    :else nil))
 
 
 ;; ============================================================================
@@ -28,40 +46,32 @@
   building complete value trees. Memory-efficient for large documents.
 
   Parameters:
-    - lines: Sequence of TOON lines (strings)
+    - lines: String or sequence of TOON lines (strings)
     - options: Optional map with keys:
       - :indent - Number of spaces per indentation level (default: 2)
       - :strict - Enable strict validation (default: true)
 
   Returns:
     Lazy sequence of events. Event types:
-      - {:type :start-object}
-      - {:type :end-object}
-      - {:type :start-array}
-      - {:type :end-array}
-      - {:type :key :key \"field-name\"}
-      - {:type :primitive :value <value>}
+      {:type :start-object}
+      {:type :end-object}
+      {:type :start-array :length n}
+      {:type :end-array}
+      {:type :key :key \"field-name\"}           ; :was-quoted true when quoted
+      {:type :primitive :value <value>}
 
   Example:
-    (decode-stream-sync [\"name: Alice\" \"age: 30\"])
+    (decode-stream-sync \"name: Alice\\nage: 30\")
     => ({:type :start-object}
         {:type :key :key \"name\"}
         {:type :primitive :value \"Alice\"}
         {:type :key :key \"age\"}
         {:type :primitive :value 30}
-        {:type :end-object})
-
-  Example with array:
-    (decode-stream-sync [\"[3]: a,b,c\"])
-    => ({:type :start-array}
-        {:type :primitive :value \"a\"}
-        {:type :primitive :value \"b\"}
-        {:type :primitive :value \"c\"}
-        {:type :end-array})"
+        {:type :end-object})"
   ([lines]
    (decode-stream-sync lines {}))
   ([lines options]
-   (let [opts (merge {:indent 2 :strict true} options)
+   (let [opts (merge default-options options)
          input (if (string? lines) lines (str/join "\n" lines))
          cursor (-> input
                     (scanner/to-parsed-lines (:indent opts) (:strict opts))
@@ -73,137 +83,74 @@
 ;; Asynchronous Streaming (core.async)
 ;; ============================================================================
 
-#?(:clj
-   (defn decode-stream
-     "Decode TOON lines asynchronously into core.async channel of events.
-
-     Processes TOON content from either a string, lazy sequence, or async channel,
-     emitting parse events to an output channel.
-
-     Parameters:
-       - source: Either:
-         - String in TOON format
-         - Sequence of strings (TOON lines)
-         - core.async channel of strings
-       - options: Optional map with keys:
-         - :indent - Number of spaces per indentation level (default: 2)
-         - :strict - Enable strict validation (default: true)
-         - :buf-size - Channel buffer size (default: 32)
-
-     Returns:
-       core.async channel of events (same format as decode-stream-sync)
-
-     Example:
-       (let [lines [\"name: Alice\" \"age: 30\"]
-             events-ch (decode-stream lines)]
-         (async/<!! (async/into [] events-ch)))
-       => [{:type :start-object}
-           {:type :key :key \"name\"}
-           {:type :primitive :value \"Alice\"}
-           {:type :key :key \"age\"}
-           {:type :primitive :value 30}
-           {:type :end-object}]
-
-     Example with async source:
-       (let [source-ch (async/to-chan! [\"name: Alice\" \"age: 30\"])
-             events-ch (decode-stream source-ch)]
-         (async/<!! (async/into [] events-ch)))"
-     ([source]
-      (decode-stream source {}))
-     ([source options]
-      (let [opts (merge {:indent 2
-                         :strict true
-                         :buf-size 32}
-                        options)
-            out-ch (async/chan (:buf-size opts))]
-        (async/go
-          (try
-            ;; Normalize input to sequence of lines
-            (let [is-channel? (and (not (string? source))
-                                   (not (sequential? source)))
-                  lines (cond
-                          ;; String input - split into lines
-                          (string? source)
-                          (str/split-lines source)
-
-                          ;; Channel input - read all lines
-                          is-channel?
-                          (async/<! (async/into [] source))
-
-                          ;; Already a sequence
-                          :else
-                          source)]
-              ;; Generate events synchronously
-              (doseq [event (decode-stream-sync lines opts)]
-                (async/>! out-ch event)))
-            (catch #?(:clj Exception :cljs js/Error) e
-              (println "Error in decode-stream:" e)
-              (throw e))
-            (finally
-              (async/close! out-ch))))
-        out-ch))))
+(defn- emit-events-to-channel!
+  "Emit all events from lines to output channel.
+  Returns a go block that closes the channel when done."
+  [lines opts out-ch]
+  (go
+    (try
+      (doseq [event (decode-stream-sync lines opts)]
+        (async/>! out-ch event))
+      (catch #?(:clj Exception :cljs js/Error) e
+        #?(:clj (println "Error in decode-stream:" e)
+           :cljs (js/console.error "Error in decode-stream:" e))
+        (throw e))
+      (finally
+        (async/close! out-ch)))))
 
 
-#?(:cljs
-   (defn decode-stream
-     "Decode TOON lines asynchronously into core.async channel of events.
+(defn decode-stream
+  "Decode TOON lines asynchronously into core.async channel of events.
 
-     Processes TOON content from either a string, lazy sequence, or async channel,
-     emitting parse events to an output channel.
+  Processes TOON content from either a string, lazy sequence, or async channel,
+  emitting parse events to an output channel.
 
-     Parameters:
-       - source: Either:
-         - String in TOON format
-         - Sequence of strings (TOON lines)
-         - core.async channel of strings
-       - options: Optional map with keys:
-         - :indent - Number of spaces per indentation level (default: 2)
-         - :strict - Enable strict validation (default: true)
-         - :buf-size - Channel buffer size (default: 32)
+  Parameters:
+    - source: Either:
+      - String in TOON format
+      - Sequence of strings (TOON lines)
+      - core.async channel of strings
+    - options: Optional map with keys:
+      - :indent - Number of spaces per indentation level (default: 2)
+      - :strict - Enable strict validation (default: true)
+      - :buf-size - Channel buffer size (default: 32)
 
-     Returns:
-       core.async channel of events (same format as decode-stream-sync)
+  Returns:
+    core.async channel of events (same format as decode-stream-sync)
 
-     Example:
-       (let [lines [\"name: Alice\" \"age: 30\"]
-             events-ch (decode-stream lines)]
-         (async/<! (async/into [] events-ch)))
-       => [{:type :start-object}
-           {:type :key :key \"name\"}
-           {:type :primitive :value \"Alice\"}
-           {:type :key :key \"age\"}
-           {:type :primitive :value 30}
-           {:type :end-object}]"
-     ([source]
-      (decode-stream source {}))
-     ([source options]
-      (let [opts (merge {:indent 2
-                         :strict true
-                         :buf-size 32}
-                        options)
-            out-ch (async/chan (:buf-size opts))]
-        (go
-          (try
-            (let [is-channel? (and (not (string? source))
-                                   (not (sequential? source)))
-                  lines (cond
-                          ;; String input - split into lines
-                          (string? source)
-                          (str/split-lines source)
+  Example:
+    (let [lines [\"name: Alice\" \"age: 30\"]
+          events-ch (decode-stream lines)]
+      (async/<!! (async/into [] events-ch)))
+    => [{:type :start-object}
+        {:type :key :key \"name\"}
+        {:type :primitive :value \"Alice\"}
+        {:type :key :key \"age\"}
+        {:type :primitive :value 30}
+        {:type :end-object}]
 
-                          ;; Channel input - read all lines
-                          is-channel?
-                          (async/<! (async/into [] source))
-
-                          ;; Already a sequence
-                          :else
-                          source)]
-              ;; Generate events synchronously
-              (doseq [event (decode-stream-sync lines opts)]
-                (async/>! out-ch event)))
-            (catch js/Error e
-              (js/console.error "Error in decode-stream:" e)
-              (throw e))
-            (finally
-              (async/close! out-ch))))
-        out-ch))))
+  Example with async source:
+    (let [source-ch (async/to-chan! [\"name: Alice\" \"age: 30\"])
+          events-ch (decode-stream source-ch)]
+      (async/<!! (async/into [] events-ch)))"
+  ([source]
+   (decode-stream source {}))
+  ([source options]
+   (let [opts (merge default-options options)
+         out-ch (async/chan (:buf-size opts))]
+     (if-let [lines (normalize-source source)]
+       ;; Sync source - emit directly
+       (emit-events-to-channel! lines opts out-ch)
+       ;; Async source (channel) - collect first then emit
+       (go
+         (try
+           (let [lines (async/<! (async/into [] source))]
+             (doseq [event (decode-stream-sync lines opts)]
+               (async/>! out-ch event)))
+           (catch #?(:clj Exception :cljs js/Error) e
+             #?(:clj (println "Error in decode-stream:" e)
+                :cljs (js/console.error "Error in decode-stream:" e))
+             (throw e))
+           (finally
+             (async/close! out-ch)))))
+     out-ch)))
