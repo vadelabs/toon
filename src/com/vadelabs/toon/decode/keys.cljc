@@ -89,10 +89,10 @@
           ;; Conflict: incompatible types
           :else
           (handle-conflict strict
-                          {:key key}
-                          target-value
-                          source-value
-                          #(assoc acc key source-value)))))
+                           {:key key}
+                           target-value
+                           source-value
+                           #(assoc acc key source-value)))))
     target
     source))
 
@@ -135,10 +135,10 @@
 
           :else
           (handle-conflict strict
-                          {:key last-seg}
-                          existing
-                          value
-                          #(assoc target last-seg value))))
+                           {:key last-seg}
+                           existing
+                           value
+                           #(assoc target last-seg value))))
 
       ;; Multiple segments - walk the path
       (let [path-to-parent (subvec segments 0 last-idx)]
@@ -148,11 +148,11 @@
                      (let [parent-obj (or parent {})]
                        (if-not (map? parent-obj)
                          (handle-conflict strict
-                                         {:path (str/join "." path-to-parent)
-                                          :found-type (type parent-obj)}
-                                         parent-obj
-                                         {}
-                                         (fn [] {last-seg value}))
+                                          {:path (str/join "." path-to-parent)
+                                           :found-type (type parent-obj)}
+                                          parent-obj
+                                          {}
+                                          (fn [] {last-seg value}))
                          ;; Parent is object - insert at last segment
                          (let [existing (get parent-obj last-seg)]
                            (cond
@@ -164,10 +164,10 @@
 
                              :else
                              (handle-conflict strict
-                                             {:key last-seg}
-                                             existing
-                                             value
-                                             #(assoc parent-obj last-seg value))))))))))))
+                                              {:key last-seg}
+                                              existing
+                                              value
+                                              #(assoc parent-obj last-seg value))))))))))))
 
 
 ;; Forward declaration for mutual recursion
@@ -208,10 +208,10 @@
       (if (can-merge? existing value)
         (assoc acc key (merge-objects existing value strict))
         (handle-conflict strict
-                        {:key key}
-                        existing
-                        value
-                        #(assoc acc key value))))
+                         {:key key}
+                         existing
+                         value
+                         #(assoc acc key value))))
     ;; No conflict - insert directly
     (assoc acc key value)))
 

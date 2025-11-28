@@ -114,7 +114,8 @@
 ;; LineCursor - Iterator for line navigation
 ;; ============================================================================
 
-(defrecord LineCursor [lines blank-lines position])
+(defrecord LineCursor
+  [lines blank-lines position])
 
 
 (defn create-cursor

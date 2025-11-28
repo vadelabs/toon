@@ -15,6 +15,7 @@
   "Regex pattern for numeric literals (integers and decimals)."
   #"^-?\d+(\.\d+)?$")
 
+
 (def ^:private comma-pattern
   "Regex pattern for splitting on commas."
   #",")
@@ -58,6 +59,8 @@
                         :example "\"hello world\""})))
      (let [content (subs s content-start close-pos)]
        (str-utils/unescaped content strict)))))
+
+
 ;; ============================================================================
 
 (defn number
