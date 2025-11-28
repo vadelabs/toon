@@ -11,20 +11,20 @@
 ;; List Item Type Detection Tests
 ;; ============================================================================
 
-(deftest detect-list-item-type-test
+(deftest list-item-type-test
   (testing "Detect list item types correctly"
     (testing "array items"
-      (is (= :array (#'items/detect-list-item-type "[3]: 1,2,3")))
-      (is (= :array (#'items/detect-list-item-type "[2]{id,name}:"))))
+      (is (= :array (#'items/list-item-type "[3]: 1,2,3")))
+      (is (= :array (#'items/list-item-type "[2]{id,name}:"))))
 
     (testing "object items"
-      (is (= :object (#'items/detect-list-item-type "key: value")))
-      (is (= :object (#'items/detect-list-item-type "name: Alice"))))
+      (is (= :object (#'items/list-item-type "key: value")))
+      (is (= :object (#'items/list-item-type "name: Alice"))))
 
     (testing "primitive items"
-      (is (= :primitive (#'items/detect-list-item-type "hello")))
-      (is (= :primitive (#'items/detect-list-item-type "42")))
-      (is (= :primitive (#'items/detect-list-item-type "true"))))))
+      (is (= :primitive (#'items/list-item-type "hello")))
+      (is (= :primitive (#'items/list-item-type "42")))
+      (is (= :primitive (#'items/list-item-type "true"))))))
 
 
 ;; ============================================================================
