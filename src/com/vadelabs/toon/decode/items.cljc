@@ -14,31 +14,17 @@
 ;; List Item Type Detection
 ;; ============================================================================
 
-(defn- detect-list-item-type
-  "Detects the type of a list item by examining its content.
-
-  Types:
-    - :array - Content contains array header [N]
-    - :object - Content contains key:value pattern
-    - :primitive - Everything else
-
-  Parameters:
-    - content: Line content (after list marker)
-
-  Returns:
-    :array, :object, or :primitive"
+(defn- list-item-type
+  "Type of list item: :array, :object, or :primitive."
   [content]
   (cond
-    ;; Array header: contains [N]
     (and (str/includes? content "[")
          (str/includes? content "]"))
     :array
 
-    ;; Key-value: contains unquoted colon
     (str-utils/unquoted-char content \:)
     :object
 
-    ;; Default: primitive
     :else
     :primitive))
 
@@ -63,7 +49,7 @@
   (let [content (:content line)
         ;; Remove list marker prefix ("- ")
         after-marker (subs content (count const/list-item-prefix))
-        item-type (detect-list-item-type after-marker)]
+        item-type (list-item-type after-marker)]
     (case item-type
       :array
       ;; Inline array: "- [3]: a,b,c"
