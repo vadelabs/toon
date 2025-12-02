@@ -8,6 +8,7 @@
     [com.vadelabs.toon.decode.value-builder :as value-builder]
     [com.vadelabs.toon.encode.encoders :as encoders]
     [com.vadelabs.toon.encode.normalize :as norm]
+    [com.vadelabs.toon.encode.replacer :as replacer]
     [com.vadelabs.toon.encode.writer :as writer]))
 
 
@@ -26,6 +27,11 @@
     - options: Optional map with keys:
       - :indent - Number of spaces per indentation level (default: 2)
       - :delimiter - Delimiter for array values: \",\" (default), \"\\t\", or \"|\"
+      - :key-collapsing - Key collapsing mode: :off (default) or :safe
+      - :flatten-depth - Max depth for key collapsing (default: Infinity)
+      - :replacer - Function (fn [key value path] ...) to transform/filter values
+                    Called for root (key=\"\", path=[]) and all nested values.
+                    Return nil to omit property/element (root cannot be omitted).
 
   Returns:
     String in TOON format with no trailing newline or spaces.
@@ -39,15 +45,28 @@
     ;=> \"[2]{id,name}:\\n  1,Alice\\n  2,Bob\"
 
     (encode {:tags [\"a\" \"b\" \"c\"]} {:delimiter \"\\t\"})
-    ;=> \"tags[3\\t]: a\\tb\\tc\""
+    ;=> \"tags[3\\t]: a\\tb\\tc\"
+
+    ;; Using replacer to filter fields
+    (encode {:name \"Alice\" :password \"secret\"}
+            {:replacer (fn [k v _] (when-not (= k \"password\") v))})
+    ;=> \"name: Alice\"
+
+    ;; Using replacer to transform values
+    (encode {:status \"active\"}
+            {:replacer (fn [k v _] (if (string? v) (str/upper-case v) v))})
+    ;=> \"status: ACTIVE\""
   [input & [options]]
   (let [opts (merge {:indent 2
                      :delimiter ","
                      :key-collapsing :off
                      :flatten-depth ##Inf}
-                    options)]
-    (-> input
-        norm/normalize-value
+                    options)
+        normalized (norm/normalize-value input)
+        transformed (if-let [repl (:replacer opts)]
+                      (replacer/apply-replacer normalized repl)
+                      normalized)]
+    (-> transformed
         (encoders/value opts 0 (writer/create (:indent opts)))
         writer/to-string)))
 
@@ -68,6 +87,7 @@
       - :delimiter - Delimiter for array values: \",\" (default), \"\\t\", or \"|\"
       - :key-collapsing - Key collapsing mode (default: :off)
       - :flatten-depth - Depth for array flattening (default: Infinity)
+      - :replacer - Function (fn [key value path] ...) to transform/filter values
 
   Returns:
     Sequence of strings (one per line, no newline characters)
@@ -89,8 +109,11 @@
                      :key-collapsing :off
                      :flatten-depth ##Inf}
                     options)
-        writer (-> input
-                   norm/normalize-value
+        normalized (norm/normalize-value input)
+        transformed (if-let [repl (:replacer opts)]
+                      (replacer/apply-replacer normalized repl)
+                      normalized)
+        writer (-> transformed
                    (encoders/value opts 0 (writer/create (:indent opts))))]
     (:lines writer)))
 
