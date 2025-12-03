@@ -186,3 +186,150 @@
                                                   v))})]
       ;; Should only have values 1, 2, 3
       (is (str/includes? result "values[3]: 1,2,3")))))
+
+
+;; ============================================================================
+;; Edge Case Tests (matching TypeScript test suite)
+;; ============================================================================
+
+(deftest apply-replacer-empty-object-test
+  (testing "Handles empty objects"
+    (let [data {}
+          result (replacer/apply-replacer data (fn [_ v _] v))]
+      (is (= {} result)))))
+
+
+(deftest apply-replacer-empty-array-test
+  (testing "Handles empty arrays"
+    (let [data []
+          result (replacer/apply-replacer data (fn [_ v _] v))]
+      (is (= [] result)))))
+
+
+(deftest apply-replacer-null-transform-test
+  (testing "Handles null value transformation"
+    (let [data {"value" nil}
+          result (replacer/apply-replacer data (fn [_ v _]
+                                                 (if (nil? v) "NULL" v)))]
+      (is (= {"value" "NULL"} result)))))
+
+
+(deftest apply-replacer-all-properties-filtered-test
+  (testing "Handles all properties being filtered out"
+    (let [data {"a" 1 "b" 2 "c" 3}
+          result (replacer/apply-replacer data (fn [k v path]
+                                                 ;; Filter out all properties (but not root)
+                                                 (when (empty? path) v)))]
+      (is (= {} result)))))
+
+
+(deftest apply-replacer-all-array-elements-filtered-test
+  (testing "Handles all array elements being filtered out"
+    (let [data [1 2 3]
+          result (replacer/apply-replacer data (fn [k v path]
+                                                 ;; Filter out all elements but not root
+                                                 (when (empty? path) v)))]
+      (is (= [] result)))))
+
+
+(deftest apply-replacer-nested-mixed-omissions-test
+  (testing "Handles nested objects with mixed omissions"
+    (let [data {"keep" "this"
+                "remove" "that"
+                "nested" {"keep" "nested keep"
+                          "remove" "nested remove"}}
+          result (replacer/apply-replacer data (fn [k v _]
+                                                 (when-not (= k "remove") v)))]
+      (is (= {"keep" "this"
+              "nested" {"keep" "nested keep"}}
+             result)))))
+
+
+(deftest apply-replacer-array-with-some-removed-test
+  (testing "Handles arrays with some elements removed"
+    (let [data {"items" [{"id" 1 "keep" true}
+                         {"id" 2 "keep" false}
+                         {"id" 3 "keep" true}]}
+          result (replacer/apply-replacer data (fn [k v _]
+                                                 (if (and (map? v)
+                                                          (contains? v "keep")
+                                                          (false? (get v "keep")))
+                                                   nil
+                                                   v)))]
+      (is (= {"items" [{"id" 1 "keep" true}
+                       {"id" 3 "keep" true}]}
+             result)))))
+
+
+(deftest apply-replacer-deeply-nested-filtering-test
+  (testing "Handles deeply nested filtering"
+    (let [data {"users" [{"name" "Alice" "password" "secret1" "role" "admin"}
+                         {"name" "Bob" "password" "secret2" "role" "user"}]}
+          result (replacer/apply-replacer data (fn [k v _]
+                                                 (when-not (= k "password") v)))]
+      (is (= {"users" [{"name" "Alice" "role" "admin"}
+                       {"name" "Bob" "role" "user"}]}
+             result)))))
+
+
+(deftest apply-replacer-nested-arrays-path-test
+  (testing "Provides correct paths for nested arrays"
+    (let [data {"matrix" [[1 2] [3 4]]}
+          paths (atom [])
+          _ (replacer/apply-replacer data (fn [k v path]
+                                            (when (number? v)
+                                              (swap! paths conj {:path (vec path) :key k}))
+                                            v))]
+      ;; Check that we got paths like ["matrix" 0 0] with key "0"
+      (is (some #(= {:path ["matrix" 0 0] :key "0"} %) @paths))
+      (is (some #(= {:path ["matrix" 0 1] :key "1"} %) @paths))
+      (is (some #(= {:path ["matrix" 1 0] :key "0"} %) @paths))
+      (is (some #(= {:path ["matrix" 1 1] :key "1"} %) @paths)))))
+
+
+(deftest apply-replacer-primitive-root-test
+  (testing "Handles primitive root values"
+    (let [result (replacer/apply-replacer "hello" (fn [_ v _]
+                                                    (if (string? v)
+                                                      (str/upper-case v)
+                                                      v)))]
+      (is (= "HELLO" result)))))
+
+
+(deftest encode-with-replacer-primitive-root-test
+  (testing "encode with replacer handles primitive root"
+    (let [result (toon/encode "hello" {:replacer (fn [_ v _]
+                                                   (if (string? v)
+                                                     (str/upper-case v)
+                                                     v))})]
+      (is (= "HELLO" result)))))
+
+
+(deftest encode-with-replacer-works-with-key-collapsing-test
+  (testing "Replacer works with key-collapsing option"
+    (let [data {:user {:profile {:name "alice"}}}
+          result (toon/encode data {:replacer (fn [_ v _]
+                                                (if (string? v)
+                                                  (str/upper-case v)
+                                                  v))
+                                    :key-collapsing :safe})]
+      (is (str/includes? result "user.profile.name: ALICE")))))
+
+
+(deftest encode-with-replacer-works-with-custom-delimiter-test
+  (testing "Replacer works with custom delimiter"
+    (let [data {:items [1 2 3]}
+          result (toon/encode data {:replacer (fn [_ v _]
+                                                (if (number? v)
+                                                  (* v 10)
+                                                  v))
+                                    :delimiter "\t"})]
+      (is (str/includes? result "10\t20\t30")))))
+
+
+(deftest encode-with-replacer-works-with-custom-indent-test
+  (testing "Replacer works with custom indent"
+    (let [data {:user {:name "Alice"}}
+          result (toon/encode data {:replacer (fn [_ v _] v)
+                                    :indent 4})]
+      (is (str/includes? result "    name: Alice")))))
