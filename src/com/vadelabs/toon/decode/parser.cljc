@@ -3,23 +3,22 @@
 
   Parses array headers, delimited values, primitive tokens, and keys."
   (:require
-    [clojure.string :as str]
-    [com.vadelabs.toon.utils :as str-utils]))
-
+   [clojure.string :as str]
+   [com.vadelabs.toon.utils :as str-utils]))
 
 ;; ============================================================================
 ;; Constants
 ;; ============================================================================
 
 (def ^:private numeric-pattern
-  "Regex pattern for numeric literals (integers and decimals)."
-  #"^-?\d+(\.\d+)?$")
-
+  "JSON-like numeric pattern: no leading zeros except 0 and 0.x, supports scientific notation.
+   Matches: 0, 0.5, 42, -3.14, 1e10, 1E-5, 2.5e+3
+   Rejects: 007, -007, 00.5"
+  #"^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$")
 
 (def ^:private comma-pattern
   "Regex pattern for splitting on commas."
   #",")
-
 
 ;; ============================================================================
 ;; String Literal Parsing
@@ -60,7 +59,6 @@
      (let [content (subs s content-start close-pos)]
        (str-utils/unescaped content strict)))))
 
-
 ;; ============================================================================
 
 (defn number
@@ -80,7 +78,6 @@
                     :cljs (js/parseFloat s))]
       ;; Normalize negative zero to positive zero (v1.4 requirement)
       (if (zero? parsed) 0.0 parsed))))
-
 
 (defn primitive-token
   "Parses a primitive token to its value.
@@ -125,7 +122,6 @@
          parsed-num
          trimmed)))))
 
-
 ;; ============================================================================
 ;; Delimited Value Parsing
 ;; ============================================================================
@@ -140,7 +136,6 @@
    :in-quotes in-quotes
    :values values})
 
-
 (defn- quote-char
   "Processes a quote character, toggling quote state.
 
@@ -150,7 +145,6 @@
    :current (doto current (.append ch))
    :in-quotes (not in-quotes)
    :values values})
-
 
 (defn- delimiter-char
   "Processes a delimiter character outside quotes.
@@ -164,7 +158,6 @@
    :in-quotes in-quotes
    :values (conj values (str/trim (.toString current)))})
 
-
 (defn- regular-char
   "Processes a regular character.
 
@@ -175,7 +168,6 @@
    :in-quotes in-quotes
    :values values})
 
-
 (defn- final-token
   "Extracts final token from buffer if non-empty.
 
@@ -185,7 +177,6 @@
                 :cljs (.-length current)))
     values
     (conj values (str/trim (.toString current)))))
-
 
 (defn delimited-values
   "Splits a string by delimiter, respecting quoted sections.
@@ -232,7 +223,6 @@
                 (:current next-state)
                 (:in-quotes next-state)
                 (:values next-state)))))))
-
 
 ;; ============================================================================
 ;; Bracket Segment Parsing
@@ -293,7 +283,6 @@
     {:length (int length)
      :delimiter delimiter}))
 
-
 ;; ============================================================================
 ;; Array Header Parsing
 ;; ============================================================================
@@ -315,7 +304,6 @@
     {:open-bracket open-bracket
      :close-bracket close-bracket}))
 
-
 (defn- key-prefix
   "Extracts optional key prefix before opening bracket.
 
@@ -323,7 +311,6 @@
   [line open-bracket]
   (when (> open-bracket 0)
     (str/trim (subs line 0 open-bracket))))
-
 
 (defn- field-list
   "Extracts optional field list from brace segment.
@@ -337,7 +324,6 @@
            (#(str/split % comma-pattern))
            (mapv str/trim)))))
 
-
 (defn- inline-values
   "Extracts optional inline values after colon.
 
@@ -347,7 +333,6 @@
     (some-> (subs after-fields (inc colon-pos))
             str/trim
             not-empty)))
-
 
 (defn array-header-line
   "Parses an array header line.
@@ -384,7 +369,6 @@
       key-part (assoc :key key-part)
       fields (assoc :fields fields)
       inline-vals (assoc :inline-values inline-vals))))
-
 
 ;; ============================================================================
 ;; Key Token Parsing
