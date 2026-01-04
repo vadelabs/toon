@@ -6,6 +6,7 @@
   - Tabular arrays of objects (key[N]{col1,col2}: ...)
   - Nested arrays of arrays"
   (:require
+   [clojure.set :as set]
    [clojure.string :as str]
    [com.vadelabs.toon.constants :as const]
    [com.vadelabs.toon.encode.normalize :as norm]
@@ -46,6 +47,8 @@
   Returns keys that appear in all objects, in the order they appear
   in the first object.
 
+  Uses set intersection for O(n×k) performance instead of O(n×k²).
+
   Parameters:
     - objects: Vector of maps
 
@@ -57,11 +60,15 @@
     ;=> [\"a\" \"b\"]"
   [objects]
   (when (seq objects)
-    (let [first-keys (keys (first objects))
-          all-key-sets (into [] (map (comp set keys)) objects)]
-      (filterv (fn [k]
-                 (every? #(contains? % k) all-key-sets))
-               first-keys))))
+    (let [first-obj (first objects)
+          first-keys (keys first-obj)
+          ;; Compute intersection of all key sets
+          common-set (reduce (fn [acc obj]
+                               (set/intersection acc (set (keys obj))))
+                             (set first-keys)
+                             (rest objects))]
+      ;; Preserve first object's key order
+      (filterv common-set first-keys))))
 
 (defn- encode-delimited-values
   "Encodes a collection of values as a delimited string.
@@ -80,8 +87,7 @@
     (encode-delimited-values [\"a\" \"b\" \"c\"] \"|\")
     ;=> \"a|b|c\""
   [values delimiter]
-  (str/join delimiter
-            (into [] (map #(prim/encode % delimiter)) values)))
+  (str/join delimiter (map #(prim/encode % delimiter) values)))
 
 ;; ============================================================================
 ;; Inline Array Encoding
@@ -135,9 +141,8 @@
     Updated LineWriter."
   [cnt ks delimiter depth writer]
   (let [header-suffix (array-header cnt delimiter)
-        quoted-keys (into [] (map quote/maybe-quote-key) ks)
         keys-part (str const/open-brace
-                       (str/join delimiter quoted-keys)
+                       (str/join delimiter (map quote/maybe-quote-key ks))
                        const/close-brace
                        const/colon)]
     (writer/push writer depth (str header-suffix keys-part))))
@@ -157,7 +162,7 @@
   Returns:
     Updated LineWriter."
   [obj ks delimiter depth writer]
-  (let [values (into [] (map #(get obj %)) ks)
+  (let [values (map #(get obj %) ks)
         line (encode-delimited-values values delimiter)]
     (writer/push writer depth line)))
 
@@ -239,9 +244,8 @@
   (let [;; Build header: - key[N]{fields}:
         quoted-key (quote/maybe-quote-key first-key)
         header-suffix (array-header (count first-value) delimiter)
-        quoted-keys (into [] (map quote/maybe-quote-key) common-keys)
         fields-part (str const/open-brace
-                         (str/join delimiter quoted-keys)
+                         (str/join delimiter (map quote/maybe-quote-key common-keys))
                          const/close-brace
                          const/colon)
         header-line (str const/list-item-prefix quoted-key header-suffix fields-part)
