@@ -4,8 +4,15 @@
   Converts TOON text into structured line objects with depth tracking.
   Provides cursor-based navigation for parsing."
   (:require
-    [clojure.string :as str]))
+   [clojure.string :as str]))
 
+;; ============================================================================
+;; Constants
+;; ============================================================================
+
+(def ^:private newline-pattern
+  "Pre-compiled regex pattern for splitting lines."
+  #"\n")
 
 ;; ============================================================================
 ;; Data Structures
@@ -17,18 +24,15 @@
   {:raw raw :depth depth :indent indent
    :content content :line-number line-number})
 
-
 (defn blank-line-info
   "Create blank line info record."
   [line-number indent depth]
   {:line-number line-number :indent indent :depth depth})
 
-
 (defn scan-result
   "Create scan result containing lines and blank lines."
   [lines blank-lines]
   {:lines lines :blank-lines blank-lines})
-
 
 ;; ============================================================================
 ;; Line Parsing Helpers
@@ -39,14 +43,12 @@
   [s]
   (- (count s) (count (str/triml s))))
 
-
 (defn- blank-line?
   "Checks if a line is blank (only whitespace)."
   [s]
   (or (nil? s)
       (str/blank? s)
       (every? #{\space \tab} s)))
-
 
 (defn- validate-indentation!
   "Validates indentation in strict mode. Throws on error."
@@ -62,7 +64,6 @@
                      :line-number line-number
                      :indent indent
                      :indent-size indent-size}))))
-
 
 ;; ============================================================================
 ;; Public API
@@ -85,7 +86,7 @@
   ([input indent-size strict]
    (let [raw-lines (if (empty? input)
                      []
-                     (str/split input #"\n" -1))]
+                     (str/split input newline-pattern -1))]
      (loop [remaining raw-lines
             line-num 0
             lines []
@@ -109,26 +110,22 @@
                       (conj lines (parsed-line line depth indent (str/trim line) line-num'))
                       blank-lines)))))))))
 
-
 ;; ============================================================================
 ;; LineCursor - Iterator for line navigation
 ;; ============================================================================
 
 (defrecord LineCursor
-  [lines blank-lines position])
-
+           [lines blank-lines position])
 
 (defn create-cursor
   "Create a cursor from lines and blank-lines vectors."
   [lines blank-lines]
   (->LineCursor lines blank-lines 0))
 
-
 (defn cursor-from-scan-result
   "Create a cursor from a scan result."
   [{:keys [lines blank-lines]}]
   (create-cursor lines blank-lines))
-
 
 (defn peek-cursor
   "Get current line without advancing."
@@ -138,7 +135,6 @@
     (when (< pos (count lines))
       (nth lines pos))))
 
-
 (defn advance-cursor
   "Advance cursor by n positions (default: 1)."
   ([cursor] (advance-cursor cursor 1))
@@ -147,18 +143,15 @@
                  (:blank-lines cursor)
                  (+ (:position cursor) n))))
 
-
 (defn next-cursor
   "Get current line and advance cursor. Returns [line new-cursor]."
   [cursor]
   [(peek-cursor cursor) (advance-cursor cursor)])
 
-
 (defn at-end?
   "Check if cursor is at end of lines."
   [cursor]
   (>= (:position cursor) (count (:lines cursor))))
-
 
 (defn peek-at-depth
   "Get current line if it matches target depth."
@@ -167,12 +160,10 @@
     (when (and line (= (:depth line) target-depth))
       line)))
 
-
 (defn has-more-at-depth?
   "Check if there are more lines at target depth."
   [cursor target-depth]
   (some? (peek-at-depth cursor target-depth)))
-
 
 (defn get-blank-lines-in-range
   "Get blank lines within line number range [start, end]."

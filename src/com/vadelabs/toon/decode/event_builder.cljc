@@ -4,11 +4,10 @@
   Processes TOON lines and emits parse events instead of building
   complete value trees. Enables memory-efficient processing of large documents."
   (:require
-    [clojure.string :as str]
-    [com.vadelabs.toon.decode.parser :as parser]
-    [com.vadelabs.toon.decode.scanner :as scanner]
-    [com.vadelabs.toon.utils :as str-utils]))
-
+   [clojure.string :as str]
+   [com.vadelabs.toon.decode.parser :as parser]
+   [com.vadelabs.toon.decode.scanner :as scanner]
+   [com.vadelabs.toon.utils :as str-utils]))
 
 ;; ============================================================================
 ;; Forward Declarations
@@ -19,15 +18,14 @@
 (declare object-field-events)
 (declare array-events)
 
-
 ;; ============================================================================
 ;; Constants
 ;; ============================================================================
 
 (def ^:private empty-array-pattern #"^\[0[,\t|]?\]$")
+(def ^:private colon-pattern #":")
 (def ^:private list-item-prefix "- ")
 (def ^:private bullet-marker "•")
-
 
 ;; ============================================================================
 ;; Helpers
@@ -39,7 +37,6 @@
   (cond-> {:type :key :key k}
     was-quoted (assoc :was-quoted true)))
 
-
 (defn- assert-expected-count!
   "Validate actual count matches expected. Throws in strict mode."
   [actual expected context strict]
@@ -50,14 +47,12 @@
                      :actual actual
                      :context context}))))
 
-
 (defn- list-item?
   "True if content starts with list marker."
   [content]
   (or (str/starts-with? content list-item-prefix)
       (str/starts-with? content bullet-marker)
       (= content "-")))
-
 
 ;; ============================================================================
 ;; Array Events
@@ -70,22 +65,20 @@
         parsed-values (mapv #(parser/primitive-token % strict) raw-values)]
     (assert-expected-count! (count parsed-values) length "inline array items" strict)
     (lazy-cat
-      [{:type :start-array :length length}]
-      (map (fn [v] {:type :primitive :value v}) parsed-values)
-      [{:type :end-array}])))
-
+     [{:type :start-array :length length}]
+     (map (fn [v] {:type :primitive :value v}) parsed-values)
+     [{:type :end-array}])))
 
 (defn- row-object-events
   "Events for a single tabular row as object."
   [fields values]
   (lazy-cat
-    [{:type :start-object}]
-    (mapcat (fn [field value]
-              [{:type :key :key field}
-               {:type :primitive :value value}])
-            fields values)
-    [{:type :end-object}]))
-
+   [{:type :start-object}]
+   (mapcat (fn [field value]
+             [{:type :key :key field}
+              {:type :primitive :value value}])
+           fields values)
+   [{:type :end-object}]))
 
 (defn- collect-tabular-rows
   "Collect tabular array rows.
@@ -106,17 +99,15 @@
                  (inc n)))
         {:events acc :count n}))))
 
-
 (defn- tabular-array-events
   "Events for tabular array: [2]{id,name}: 1,Alice / 2,Bob"
   [{:keys [fields delimiter length]} cursor depth strict]
   (let [{:keys [events count]} (collect-tabular-rows fields delimiter cursor depth strict length)]
     (assert-expected-count! count length "tabular rows" strict)
     (lazy-cat
-      [{:type :start-array :length length}]
-      events
-      [{:type :end-array}])))
-
+     [{:type :start-array :length length}]
+     events
+     [{:type :end-array}])))
 
 ;; ============================================================================
 ;; List Item Events (broken into smaller functions)
@@ -129,7 +120,6 @@
     (object-events cursor (inc depth) strict)
     [{:type :start-object} {:type :end-object}]))
 
-
 (defn- collect-child-field-events
   "Collect events for child fields at given depth."
   [cursor depth strict]
@@ -140,21 +130,19 @@
         (recur (scanner/advance-cursor c) (into acc field-evts)))
       acc)))
 
-
 (defn- inline-object-with-children-events
   "Events for list item with inline field + nested children."
   [item-content cursor depth strict]
-  (let [[key-part value-part] (str/split item-content #":" 2)
+  (let [[key-part value-part] (str/split item-content colon-pattern 2)
         {:keys [key was-quoted]} (parser/key-token key-part)
         field-value (when value-part (parser/primitive-token (str/trim value-part) strict))
         child-evts (collect-child-field-events cursor (inc depth) strict)]
     (lazy-cat
-      [{:type :start-object}
-       (key-evt key was-quoted)
-       {:type :primitive :value field-value}]
-      child-evts
-      [{:type :end-object}])))
-
+     [{:type :start-object}
+      (key-evt key was-quoted)
+      {:type :primitive :value field-value}]
+     child-evts
+     [{:type :end-object}])))
 
 (defn- collect-sibling-field-events
   "Collect sibling field events, stopping at next list item."
@@ -168,21 +156,19 @@
           (recur (scanner/advance-cursor c) (into acc field-evts))))
       acc)))
 
-
 (defn- inline-object-events
   "Events for list item with inline key-value only."
   [item-content cursor depth strict]
-  (let [[key-part value-part] (str/split item-content #":" 2)
+  (let [[key-part value-part] (str/split item-content colon-pattern 2)
         {:keys [key was-quoted]} (parser/key-token key-part)
         nested-depth (inc depth)
         sibling-evts (collect-sibling-field-events cursor nested-depth strict)]
     (lazy-cat
-      [{:type :start-object}
-       (key-evt key was-quoted)
-       {:type :primitive :value (parser/primitive-token (str/trim (or value-part "")) strict)}]
-      sibling-evts
-      [{:type :end-object}])))
-
+     [{:type :start-object}
+      (key-evt key was-quoted)
+      {:type :primitive :value (parser/primitive-token (str/trim (or value-part "")) strict)}]
+     sibling-evts
+     [{:type :end-object}])))
 
 (defn- list-item-events
   "Events for a single list item."
@@ -206,7 +192,6 @@
 
       :else
       [{:type :primitive :value (parser/primitive-token item-content strict)}])))
-
 
 (defn- collect-list-items
   "Collect list array items.
@@ -233,17 +218,15 @@
             {:events acc :count n :cursor c}))
         {:events acc :count n :cursor c}))))
 
-
 (defn- list-array-events
   "Events for list array: [2]: - item1 / - item2"
   [{:keys [length]} cursor depth strict]
   (let [{:keys [events count]} (collect-list-items cursor depth strict length)]
     (assert-expected-count! count length "list array items" strict)
     (lazy-cat
-      [{:type :start-array :length length}]
-      events
-      [{:type :end-array}])))
-
+     [{:type :start-array :length length}]
+     events
+     [{:type :end-array}])))
 
 (defn- array-events
   "Events for array based on header format."
@@ -253,7 +236,6 @@
     (:fields header-info)        (tabular-array-events header-info cursor depth strict)
     :else                        (list-array-events header-info cursor depth strict)))
 
-
 ;; ============================================================================
 ;; Object Events
 ;; ============================================================================
@@ -262,7 +244,7 @@
   "Events for a single object field (key-value pair)."
   [line cursor depth strict]
   (let [content (:content line)
-        [key-part value-part] (str/split content #":" 2)
+        [key-part value-part] (str/split content colon-pattern 2)
         key-str (str/trim key-part)
         value-str (when value-part (str/trim value-part))]
     (cond
@@ -279,15 +261,15 @@
       (and (str/includes? key-str "[") value-str)
       (let [header-info (parser/array-header-line content)]
         (lazy-cat
-          [{:type :key :key (:key header-info)}]
-          (array-events header-info cursor (inc depth) strict)))
+         [{:type :key :key (:key header-info)}]
+         (array-events header-info cursor (inc depth) strict)))
 
       ;; Nested content
       (scanner/has-more-at-depth? cursor (inc depth))
       (let [{:keys [key was-quoted]} (parser/key-token key-str)]
         (lazy-cat
-          [(key-evt key was-quoted)]
-          (value-events value-str cursor (inc depth) strict)))
+         [(key-evt key was-quoted)]
+         (value-events value-str cursor (inc depth) strict)))
 
       ;; Inline primitive value
       :else
@@ -296,25 +278,22 @@
         [(key-evt key was-quoted)
          {:type :primitive :value field-value}]))))
 
-
 (defn- object-fields-events
   "Events for all object fields at depth. Returns lazy sequence."
   [cursor depth strict]
   (lazy-seq
-    (when-let [line (scanner/peek-at-depth cursor depth)]
-      (lazy-cat
-        (object-field-events line (scanner/advance-cursor cursor) depth strict)
-        (object-fields-events (scanner/advance-cursor cursor) depth strict)))))
-
+   (when-let [line (scanner/peek-at-depth cursor depth)]
+     (lazy-cat
+      (object-field-events line (scanner/advance-cursor cursor) depth strict)
+      (object-fields-events (scanner/advance-cursor cursor) depth strict)))))
 
 (defn- object-events
   "Events for object (map) structure."
   [cursor depth strict]
   (lazy-cat
-    [{:type :start-object}]
-    (object-fields-events cursor depth strict)
-    [{:type :end-object}]))
-
+   [{:type :start-object}]
+   (object-fields-events cursor depth strict)
+   [{:type :end-object}]))
 
 ;; ============================================================================
 ;; Value Events (Root Dispatcher)
@@ -329,7 +308,6 @@
     (if (scanner/has-more-at-depth? cursor depth)
       (object-events cursor depth strict)
       [{:type :primitive :value (parser/primitive-token content strict)}])))
-
 
 ;; ============================================================================
 ;; Public API
